@@ -1,0 +1,49 @@
+{
+  "date": "2026-04-23",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4093.25,
+      "change_pct": -0.32
+    },
+    "shenzhen_index": {
+      "close": 15043.45,
+      "change_pct": -0.88
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": null
+  },
+  "trades": [
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "sell",
+      "code": "300274",
+      "name": "阳光电源",
+      "type": "stock",
+      "price": 134.5,
+      "shares": 200,
+      "amount": 26900.0,
+      "commission": 8.07,
+      "stamp_tax": 26.9,
+      "transfer_fee": 0.54,
+      "total_cost": 35.51,
+      "net_proceeds": 26864.49,
+      "realized_pnl": -1027.51,
+      "signal": "时间止损：持有9天涨幅-3.6%",
+      "strategy_ref": "momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 998945.09,
+      "daily_pnl": 2350.0,
+      "daily_pnl_pct": 0.24
+    },
+    "lab": {
+      "total_value": 310099.61,
+      "daily_pnl": -749.0,
+      "daily_pnl_pct": -0.24
+    }
+  }
+}

@@ -1,0 +1,114 @@
+[
+  {
+    "date": "2026-04-13",
+    "main_pct": -0.004,
+    "lab_pct": -0.016,
+    "hs300_pct": 0.06,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-14",
+    "main_pct": 0.1288,
+    "lab_pct": 0.6111,
+    "hs300_pct": 0.95,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-15",
+    "main_pct": 0.0269,
+    "lab_pct": 0.0358,
+    "hs300_pct": 0.01,
+    "main_beat": true,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-04-16",
+    "main_pct": 0.0126,
+    "lab_pct": 1.9578,
+    "hs300_pct": 0.4,
+    "main_beat": false,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-04-17",
+    "main_pct": -0.78,
+    "lab_pct": -0.44,
+    "hs300_pct": -0.1,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-20",
+    "main_pct": 0.3,
+    "lab_pct": 0.53,
+    "hs300_pct": 0.76,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-21",
+    "main_pct": 0.05,
+    "lab_pct": 0.32,
+    "hs300_pct": 1.44,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-22",
+    "main_pct": -0.09,
+    "lab_pct": 0.81,
+    "hs300_pct": 0.52,
+    "main_beat": false,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-04-23",
+    "main_pct": 0.24,
+    "lab_pct": -0.24,
+    "hs300_pct": -0.32,
+    "main_beat": true,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-04-24",
+    "main_pct": 0.0505,
+    "lab_pct": 0.6585,
+    "hs300_pct": -0.35,
+    "main_beat": true,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-04-27",
+    "main_pct": -0.0145,
+    "lab_pct": 0.0534,
+    "hs300_pct": 0.03,
+    "main_beat": false,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-04-28",
+    "main_pct": 0.7168,
+    "lab_pct": -0.2753,
+    "hs300_pct": -0.27,
+    "main_beat": true,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-29",
+    "main_pct": 0.53,
+    "lab_pct": 1.08,
+    "hs300_pct": 1.1,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-04-30",
+    "main_pct": -0.01,
+    "lab_pct": -0.002,
+    "hs300_pct": -0.06,
+    "main_beat": true,
+    "lab_beat": true
+  }
+]

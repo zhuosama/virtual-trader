@@ -1,0 +1,45 @@
+{
+  "date": "2026-04-24",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4079.9,
+      "change_pct": -0.33
+    },
+    "shenzhen_index": {
+      "close": 14940.3,
+      "change_pct": -0.69
+    }
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "000858",
+      "name": "五粮液",
+      "type": "stock",
+      "price": 101.27,
+      "shares": 600,
+      "amount": 60762.0,
+      "commission": 18.23,
+      "stamp_tax": 0,
+      "transfer_fee": 1.22,
+      "total_cost": 60781.44,
+      "signal": "仓位补建: 当前37.3%<50%下限, v1.0.5强制加仓规则, 选五粮液(白酒蓝筹ROE>20%, 今日+0.09%企稳)",
+      "strategy_ref": "value_trend_v1.0.5"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 999429.65,
+      "daily_pnl": 504.0,
+      "daily_pnl_pct": 0.0505
+    },
+    "lab": {
+      "total_value": 312141.61,
+      "daily_pnl": 2042.0,
+      "daily_pnl_pct": 0.6585
+    }
+  }
+}

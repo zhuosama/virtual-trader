@@ -1,0 +1,34 @@
+{
+  "date": "2026-04-17",
+  "day_of_week": "Friday",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {"close": 4051.43, "change_pct": -0.10},
+    "shenzhen_index": {"close": 14885.42, "change_pct": 0.60},
+    "chinext_index": {"close": 3678.29, "change_pct": 1.43},
+    "northbound_flow_billion": null,
+    "total_turnover_billion": null,
+    "market_character": "大盘蓝筹普跌，成长股相对抗跌，半导体领涨"
+  },
+  "trades": [],
+  "signals_evaluated": {
+    "main": {"action": "hold", "reason": "大盘偏弱，蓝筹普跌但未触发止损，观望为主"},
+    "lab": {"action": "hold", "reason": "无突破信号，阳光电源止损监控预警"}
+  },
+  "account_snapshots": {
+    "main": {
+      "total_value": 993851.79,
+      "daily_pnl": -7782.00,
+      "daily_pnl_pct": -0.78,
+      "total_pnl": -6148.21,
+      "total_pnl_pct": -0.61
+    },
+    "lab": {
+      "total_value": 307944.82,
+      "daily_pnl": -1362.00,
+      "daily_pnl_pct": -0.44,
+      "total_pnl": 7944.82,
+      "total_pnl_pct": 2.65
+    }
+  }
+}

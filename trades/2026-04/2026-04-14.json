@@ -1,0 +1,102 @@
+{
+  "date": "2026-04-14",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4026.63,
+      "change_pct": 0.95
+    },
+    "shenzhen_index": {
+      "close": 14639.95,
+      "change_pct": 1.61
+    },
+    "chinext_index": {
+      "close": 3558.53,
+      "change_pct": 2.36
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": null
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "601318",
+      "name": "中国平安",
+      "type": "stock",
+      "price": 58.97,
+      "shares": 500,
+      "amount": 29485.0,
+      "commission": 8.85,
+      "stamp_tax": 0,
+      "transfer_fee": 0.59,
+      "total_cost": 29494.44,
+      "signal": "综合金融龙头，股息率4%+，今日+2.11%强势，估值处于低位",
+      "strategy_ref": "value_trend_base"
+    },
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "000333",
+      "name": "美的集团",
+      "type": "stock",
+      "price": 76.55,
+      "shares": 300,
+      "amount": 22965.0,
+      "commission": 6.89,
+      "stamp_tax": 0,
+      "transfer_fee": 0.46,
+      "total_cost": 22972.35,
+      "signal": "家电龙头，全球化布局，股息率3%+，今日+1.02%",
+      "strategy_ref": "value_trend_base"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "688111",
+      "name": "金山办公",
+      "type": "stock",
+      "price": 248.53,
+      "shares": 100,
+      "amount": 24853.0,
+      "commission": 7.46,
+      "stamp_tax": 0,
+      "transfer_fee": 0.5,
+      "total_cost": 24860.95,
+      "signal": "AI+办公动量突破，今日+6.33%，科创板涨跌停20%，空间打开",
+      "strategy_ref": "momentum_breakout"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "300274",
+      "name": "阳光电源",
+      "type": "stock",
+      "price": 139.46,
+      "shares": 200,
+      "amount": 27892.0,
+      "commission": 8.37,
+      "stamp_tax": 0,
+      "transfer_fee": 0.56,
+      "total_cost": 27900.93,
+      "signal": "光伏逆变器龙头，今日+3.89%突破，海外订单增长逻辑确认",
+      "strategy_ref": "momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1001252.02,
+      "daily_pnl": 1288.22,
+      "daily_pnl_pct": 0.1288
+    },
+    "lab": {
+      "total_value": 301786.27,
+      "daily_pnl": 1833.12,
+      "daily_pnl_pct": 0.6111
+    }
+  }
+}

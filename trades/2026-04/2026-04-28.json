@@ -1,0 +1,51 @@
+{
+  "date": "2026-04-28",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4078.64,
+      "change_pct": -0.19
+    },
+    "shenzhen_index": {
+      "close": 14830.46,
+      "change_pct": -1.1
+    },
+    "hs300_index": {
+      "close": 4758.21,
+      "change_pct": -0.27
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": 1113.96
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "601006",
+      "name": "大秦铁路",
+      "type": "stock",
+      "price": 5.39,
+      "shares": 8000,
+      "amount": 43120.0,
+      "commission": 12.94,
+      "stamp_tax": 0,
+      "transfer_fee": 0.86,
+      "total_cost": 43133.8,
+      "signal": "强制加仓：仓位45.35%低于50%下限，选择大秦铁路(股息率6%+，防御属性强)",
+      "strategy_ref": "value_trend_hybrid_v1.0.5"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1006447.53,
+      "daily_pnl": 7163.2,
+      "daily_pnl_pct": 0.7168
+    },
+    "lab": {
+      "total_value": 311448.61,
+      "daily_pnl": -859.8,
+      "daily_pnl_pct": -0.2753
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "date": "2026-04-30",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4112.16,
+      "change_pct": 0.11
+    },
+    "shenzhen_index": {
+      "close": 15107.55,
+      "change_pct": -0.09
+    },
+    "hs300_index": {
+      "close": 4807.31,
+      "change_pct": -0.06
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": 27409.11
+  },
+  "trades": [
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "sell",
+      "code": "688981",
+      "name": "中芯国际",
+      "type": "stock",
+      "price": 118.73,
+      "shares": 100,
+      "amount": 11873.0,
+      "commission": 5,
+      "stamp_tax": 11.87,
+      "transfer_fee": 0.24,
+      "total_cost": 17.11,
+      "net_amount": 11855.89,
+      "signal": "止盈：涨幅14.26%超过12%止盈线",
+      "strategy_ref": "momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1011668.53,
+      "daily_pnl": -83.0,
+      "daily_pnl_pct": -0.01
+    },
+    "lab": {
+      "total_value": 314783.9,
+      "daily_pnl": -6.0,
+      "daily_pnl_pct": -0.0
+    }
+  }
+}

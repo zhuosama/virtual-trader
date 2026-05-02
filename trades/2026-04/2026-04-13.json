@@ -1,0 +1,115 @@
+{
+  "date": "2026-04-13",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 3988.56,
+      "change_pct": 0.06
+    },
+    "shenzhen_index": {
+      "close": 10350.0,
+      "change_pct": 0.56
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": null
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "600900",
+      "name": "长江电力",
+      "type": "stock",
+      "price": 26.42,
+      "shares": 1800,
+      "amount": 47556.0,
+      "commission": 14.27,
+      "stamp_tax": 0,
+      "transfer_fee": 0.95,
+      "total_cost": 47571.22,
+      "signal": "首批建仓：高股息防御底仓，股息率~3.5%，价格位于MA20附近横盘",
+      "strategy_ref": "value_trend_base"
+    },
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "600036",
+      "name": "招商银行",
+      "type": "stock",
+      "price": 38.98,
+      "shares": 400,
+      "amount": 15592.0,
+      "commission": 5.0,
+      "stamp_tax": 0,
+      "transfer_fee": 0.31,
+      "total_cost": 15597.31,
+      "signal": "首批建仓：银行蓝筹底仓，ROE>15%，股息率~5%，估值合理",
+      "strategy_ref": "value_trend_base"
+    },
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "002415",
+      "name": "海康威视",
+      "type": "stock",
+      "price": 32.65,
+      "shares": 1500,
+      "amount": 48975.0,
+      "commission": 14.69,
+      "stamp_tax": 0,
+      "transfer_fee": 0.98,
+      "total_cost": 48990.67,
+      "signal": "首批建仓：安防龙头+AI转型，今日+2.96%，5日连涨确认趋势向上",
+      "strategy_ref": "value_trend_momentum"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "300750",
+      "name": "宁德时代",
+      "type": "stock",
+      "price": 427.13,
+      "shares": 200,
+      "amount": 85426.0,
+      "commission": 25.63,
+      "stamp_tax": 0,
+      "transfer_fee": 1.71,
+      "total_cost": 85453.34,
+      "signal": "动量突破：5日涨幅11%，量价配合，MA5上穿MA10/MA20，固态电池催化",
+      "strategy_ref": "momentum_breakout"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "688256",
+      "name": "寒武纪",
+      "type": "stock",
+      "price": 1219.62,
+      "shares": 50,
+      "amount": 60981.0,
+      "commission": 18.29,
+      "stamp_tax": 0,
+      "transfer_fee": 1.22,
+      "total_cost": 61000.51,
+      "signal": "动量突破：AI芯片龙头，5日涨幅9%，MA5>MA10>MA20多头排列",
+      "strategy_ref": "momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 999963.8,
+      "daily_pnl": -36.2,
+      "daily_pnl_pct": -0.004
+    },
+    "lab": {
+      "total_value": 299953.15,
+      "daily_pnl": -46.85,
+      "daily_pnl_pct": -0.016
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-04-22T17:40:07.594739",
+  "workflow_type": "pre_market",
+  "steps": [
+    {
+      "step": 1,
+      "agent": "market_analyst",
+      "status": "success",
+      "output": "市场状态: 看跌 | 最强板块: 消费电子 (+2.49%)"
+    },
+    {
+      "step": 2,
+      "agent": "execution_planner",
+      "status": "success",
+      "output": "市场状态: 看跌 | 交易动作: 2个 | 信心水平: 高"
+    },
+    {
+      "step": 3,
+      "agent": "risk_controller",
+      "status": "success",
+      "output": "决策: 需要修改 | 检查项目: 4个 | 警告: 2个"
+    }
+  ],
+  "final_output": "📊 盘前分析报告\n市场基调: bearish\n\n⚠️ 风险审查: 需要修改\n风险警告:\n  ⚠️ main账户前3大持仓占比68.4%超过限制50.0%\n  ⚠️ lab账户前3大持仓占比77.7%超过限制50.0%\n\n🎯 今日目标: 修改交易计划后重新审查",
+  "status": "success"
+}

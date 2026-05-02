@@ -1,0 +1,52 @@
+{
+  "date": "2026-04-29",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4107.51,
+      "change_pct": 0.71
+    },
+    "shenzhen_index": {
+      "close": 15120.92,
+      "change_pct": 1.96
+    },
+    "hs300_index": {
+      "close": 4810.35,
+      "change_pct": 1.1
+    }
+  },
+  "trades": [
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "sell",
+      "code": "688256",
+      "name": "寒武纪",
+      "type": "stock",
+      "price": 1416.63,
+      "shares": 40,
+      "amount": 56665.2,
+      "commission": 17.0,
+      "stamp_tax": 56.67,
+      "transfer_fee": 1.13,
+      "total_cost": 74.8,
+      "net_proceeds": 56590.4,
+      "realized_pnl": 7790.0,
+      "realized_pnl_pct": 15.96,
+      "signal": "止盈：浮盈16.10%超过15%止盈线",
+      "strategy_ref": "momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1011751.53,
+      "daily_pnl": 5304.0,
+      "daily_pnl_pct": 0.53
+    },
+    "lab": {
+      "total_value": 314807.01,
+      "daily_pnl": 3358.4,
+      "daily_pnl_pct": 1.08
+    }
+  }
+}

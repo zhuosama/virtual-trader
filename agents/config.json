@@ -1,0 +1,52 @@
+{
+  "agents": {
+    "market_analyst": {
+      "enabled": true,
+      "timeout": 300,
+      "retry_count": 3
+    },
+    "execution_planner": {
+      "enabled": true,
+      "timeout": 300,
+      "retry_count": 3
+    },
+    "risk_controller": {
+      "enabled": true,
+      "timeout": 180,
+      "retry_count": 2
+    },
+    "review_agent": {
+      "enabled": true,
+      "timeout": 600,
+      "retry_count": 2
+    },
+    "strategy_maintainer": {
+      "enabled": true,
+      "timeout": 300,
+      "retry_count": 2
+    }
+  },
+  "workflow": {
+    "pre_market": [
+      "market_analyst",
+      "execution_planner",
+      "risk_controller"
+    ],
+    "post_market": [
+      "review_agent",
+      "strategy_maintainer"
+    ],
+    "weekly_review": [
+      "review_agent",
+      "strategy_maintainer",
+      "risk_controller"
+    ]
+  },
+  "data_sources": {
+    "primary": "tencent_api",
+    "backup": [
+      "sina_api",
+      "eastmoney_api"
+    ]
+  }
+}

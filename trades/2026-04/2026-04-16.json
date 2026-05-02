@@ -1,0 +1,76 @@
+{
+  "date": "2026-04-16",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4043.52,
+      "change_pct": 0.4
+    },
+    "shenzhen_index": {
+      "close": 14732.68,
+      "change_pct": 1.62
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": null
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "000651",
+      "name": "格力电器",
+      "type": "stock",
+      "price": 37.28,
+      "shares": 3000,
+      "amount": 111840.0,
+      "commission": 33.55,
+      "stamp_tax": 0,
+      "transfer_fee": 0.22,
+      "total_cost": 111873.78,
+      "signal": "价值底仓建仓1/3：格力电器ROE>25%、股息率5%+，符合主策略蓝筹标准",
+      "strategy_ref": "value_trend_base_batch1"
+    },
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "601088",
+      "name": "中国神华",
+      "type": "stock",
+      "price": 45.52,
+      "shares": 2000,
+      "amount": 91040.0,
+      "commission": 27.31,
+      "stamp_tax": 0,
+      "transfer_fee": 0.18,
+      "total_cost": 91067.49,
+      "signal": "价值底仓建仓1/3：中国神华股息率5%+、现金流充沛，高股息防御配置",
+      "strategy_ref": "value_trend_base_batch1"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1001646.79,
+      "cash": 485635.79,
+      "stock_value": 516011.0,
+      "daily_pnl": 125.77,
+      "daily_pnl_pct": 0.0126,
+      "positions_count": 8
+    },
+    "lab": {
+      "total_value": 307803.32,
+      "cash": 78626.82,
+      "stock_value": 229176.5,
+      "daily_pnl": 5909.05,
+      "daily_pnl_pct": 1.9578,
+      "positions_count": 6
+    }
+  },
+  "review": {
+    "plan_vs_actual": "盘前计划未明确指定今日买入标的，根据策略引擎信号执行底仓建仓",
+    "main_action": "买入格力电器3000股、中国神华2000股，逐步建仓价值底仓",
+    "lab_action": "无操作，所有持仓未触发止损/止盈信号",
+    "market_note": "深证+1.62%领涨，成长股表现强劲（宁德时代+4.74%、寒武纪+6.23%），蓝筹股小幅波动"
+  }
+}

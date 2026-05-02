@@ -1,0 +1,57 @@
+{
+  "date": "2026-04-27",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4086.34,
+      "change_pct": 0.16
+    },
+    "shenzhen_index": {
+      "close": 14995.75,
+      "change_pct": 0.37
+    },
+    "hs300_index": {
+      "close": 4770.95,
+      "change_pct": 0.03
+    },
+    "star50_index": {
+      "close": 1508.38,
+      "change_pct": 3.76
+    },
+    "chinext_index": {
+      "close": 3648.79,
+      "change_pct": -0.52
+    }
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "600036",
+      "name": "招商银行",
+      "type": "stock",
+      "price": 39.38,
+      "shares": 400,
+      "amount": 15752.000000000002,
+      "commission": 5,
+      "stamp_tax": 0,
+      "transfer_fee": 0.32,
+      "total_cost": 15757.32,
+      "signal": "仓位补仓：1.58%→3.16%，v1.0.5强制补仓规则触发",
+      "strategy_ref": "value_trend_hybrid"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 999284.33,
+      "daily_pnl": -145.32,
+      "daily_pnl_pct": -0.0145
+    },
+    "lab": {
+      "total_value": 312308.41,
+      "daily_pnl": 166.8,
+      "daily_pnl_pct": 0.0534
+    }
+  }
+}

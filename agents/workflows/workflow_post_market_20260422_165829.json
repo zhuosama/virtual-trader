@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-04-22T16:58:29.485683",
+  "workflow_type": "post_market",
+  "steps": [
+    {
+      "step": 1,
+      "agent": "review_agent",
+      "status": "success",
+      "output": "日期: 2026-04-22 | 📉 main: -885元 | 📈 lab: +2,530元 | 交易: 1笔 | 错误: 1个 | 有效: 2个 | 失败: 1个"
+    },
+    {
+      "step": 2,
+      "agent": "strategy_maintainer",
+      "status": "success",
+      "output": "绩效问题: 1个 | 调整建议: 1个 | 已应用: 1个 | Changelog: 1条 | 信心: 高"
+    }
+  ],
+  "final_output": "📊 盘后复盘报告\n📉 main账户: -885元\n📈 lab账户: +2,530元\n今日交易: 1笔\n发现错误: 1个\n\n有效做法:\n  ✅ 今日执行了1笔交易\n  ✅ 日报中包含有价值的洞察\n\n失败做法:\n  ❌ main账户格力电器仓位11.1%超过限制10.0%\n\n🔧 策略更新:\n  max_single_position: 0.1 -> 0.08\n\n📝 Changelog: 1条记录",
+  "status": "success"
+}

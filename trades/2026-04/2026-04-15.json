@@ -1,0 +1,81 @@
+{
+  "date": "2026-04-15",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4027.21,
+      "change_pct": 0.01
+    },
+    "shenzhen_index": {
+      "close": 14498.46,
+      "change_pct": -0.97
+    },
+    "northbound_flow_billion": 45.2,
+    "total_turnover_billion": 1150.0
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "600519",
+      "name": "贵州茅台",
+      "type": "stock",
+      "price": 1467.5,
+      "shares": 100,
+      "amount": 146750.0,
+      "commission": 44.02,
+      "stamp_tax": 0,
+      "transfer_fee": 2.94,
+      "total_cost": 146796.96,
+      "signal": "价值买入：白酒龙头ROE>30%，5日趋势企稳回升，底仓配置",
+      "strategy_ref": "value_trend_hybrid"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "002475",
+      "name": "立讯精密",
+      "type": "stock",
+      "price": 58.78,
+      "shares": 200,
+      "amount": 11756.0,
+      "commission": 5.0,
+      "stamp_tax": 0,
+      "transfer_fee": 0.24,
+      "total_cost": 11761.24,
+      "signal": "动量买入：涨6.7%，苹果供应链+汽车电子双驱动，量价配合",
+      "strategy_ref": "sector_momentum_breakout"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "688981",
+      "name": "中芯国际",
+      "type": "stock",
+      "price": 103.91,
+      "shares": 100,
+      "amount": 10391.0,
+      "commission": 5.0,
+      "stamp_tax": 0,
+      "transfer_fee": 0.21,
+      "total_cost": 10396.21,
+      "signal": "动量买入：涨4.2%，半导体国产替代逻辑，板块轮动受益",
+      "strategy_ref": "sector_momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1001521.02,
+      "daily_pnl": 269.0,
+      "daily_pnl_pct": 0.0269
+    },
+    "lab": {
+      "total_value": 301894.27,
+      "daily_pnl": 108.0,
+      "daily_pnl_pct": 0.0358
+    }
+  }
+}

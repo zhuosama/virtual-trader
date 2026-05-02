@@ -1,0 +1,265 @@
+{
+  "stocks": [
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "sector": "白酒",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "白酒龙头，ROE>30%，品牌护城河极深"
+    },
+    {
+      "code": "000858",
+      "name": "五粮液",
+      "sector": "白酒",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "白酒次龙头，估值相对茅台有优势"
+    },
+    {
+      "code": "601318",
+      "name": "中国平安",
+      "sector": "保险",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "综合金融龙头，股息率4%+，估值低位"
+    },
+    {
+      "code": "600036",
+      "name": "招商银行",
+      "sector": "银行",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "零售银行标杆，ROE>15%，资产质量优异"
+    },
+    {
+      "code": "000333",
+      "name": "美的集团",
+      "sector": "家电",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "家电龙头，全球化布局，股息率3%+"
+    },
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "sector": "水电",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "水电龙头，现金流极稳，防御属性突出"
+    },
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "sector": "新能源",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "动力电池全球龙头，关注固态电池进展"
+    },
+    {
+      "code": "688981",
+      "name": "中芯国际",
+      "sector": "半导体",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "国产芯片代工龙头，政策支持+国产替代"
+    },
+    {
+      "code": "002475",
+      "name": "立讯精密",
+      "sector": "消费电子",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "4/22止盈+15.7%(7个交易日)，动量策略验证成功。如再次出现突破信号可重新入场",
+      "status": "profit_taken"
+    },
+    {
+      "code": "300059",
+      "name": "东方财富",
+      "sector": "互联网金融",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "券商+互联网双属性，市场情绪放大器"
+    },
+    {
+      "code": "002230",
+      "name": "科大讯飞",
+      "sector": "AI",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "AI应用龙头，大模型+教育+医疗落地"
+    },
+    {
+      "code": "300124",
+      "name": "汇川技术",
+      "sector": "工业自动化",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "工业自动化龙头，制造业升级受益"
+    },
+    {
+      "code": "601088",
+      "name": "中国神华",
+      "sector": "煤炭",
+      "type": "high_dividend",
+      "tag": "main",
+      "reason": "煤炭龙头，股息率5%+，现金流充沛"
+    },
+    {
+      "code": "601225",
+      "name": "陕西煤业",
+      "sector": "煤炭",
+      "type": "high_dividend",
+      "tag": "main",
+      "reason": "优质煤企，股息率6%+，低估值。4/27冲高回落-3.50%，等待企稳后再考虑建仓"
+    },
+    {
+      "code": "601006",
+      "name": "大秦铁路",
+      "sector": "运输",
+      "type": "high_dividend",
+      "tag": "main",
+      "reason": "铁路运输，股息率6%+，现金奶牛"
+    },
+    {
+      "code": "000651",
+      "name": "格力电器",
+      "sector": "家电",
+      "type": "high_dividend",
+      "tag": "main",
+      "reason": "空调龙头，ROE>25%，分红慷慨"
+    },
+    {
+      "code": "000895",
+      "name": "双汇发展",
+      "sector": "食品加工",
+      "type": "high_dividend",
+      "tag": "main",
+      "reason": "肉制品龙头，股息率5%+，需求刚性"
+    },
+    {
+      "code": "510300",
+      "name": "沪深300ETF",
+      "sector": "宽基指数",
+      "type": "etf",
+      "tag": "main",
+      "reason": "大盘蓝筹代表，趋势策略标的"
+    },
+    {
+      "code": "510500",
+      "name": "中证500ETF",
+      "sector": "宽基指数",
+      "type": "etf",
+      "tag": "lab",
+      "reason": "中盘成长代表，适合动量策略"
+    },
+    {
+      "code": "159915",
+      "name": "创业板ETF",
+      "sector": "成长指数",
+      "type": "etf",
+      "tag": "lab",
+      "reason": "创业板代表，波动大适合趋势跟踪"
+    },
+    {
+      "code": "512480",
+      "name": "半导体ETF",
+      "sector": "行业ETF",
+      "type": "etf",
+      "tag": "lab",
+      "reason": "半导体板块集中度高，轮动策略标的"
+    },
+    {
+      "code": "002352",
+      "name": "顺丰控股",
+      "sector": "物流",
+      "type": "mid_cap_momentum",
+      "tag": "lab",
+      "reason": "快递龙头，关注旺季催化"
+    },
+    {
+      "code": "603259",
+      "name": "药明康德",
+      "sector": "医药外包",
+      "type": "mid_cap_momentum",
+      "tag": "lab",
+      "reason": "CXO龙头，创新药出海逻辑"
+    },
+    {
+      "code": "688256",
+      "name": "寒武纪",
+      "sector": "AI芯片",
+      "type": "mid_cap_momentum",
+      "tag": "lab",
+      "reason": "4/29止盈+15.96%(16天)，4/30涨停+20%。新分批止盈规则下可重新评估入场",
+      "status": "profit_taken_v2"
+    },
+    {
+      "code": "300274",
+      "name": "阳光电源",
+      "sector": "光伏",
+      "type": "mid_cap_momentum",
+      "tag": "lab",
+      "reason": "4/23时间止损出局(持有9天涨幅-3.6%)，暂时移出关注池，待光伏板块企稳后可重新评估",
+      "status": "stopped_out"
+    },
+    {
+      "code": "002415",
+      "name": "海康威视",
+      "sector": "安防/AI",
+      "type": "large_cap",
+      "tag": "main",
+      "reason": "安防龙头，AI+物联网转型中"
+    },
+    {
+      "code": "000301",
+      "name": "东方盛虹",
+      "sector": "化工",
+      "type": "mid_cap_momentum",
+      "tag": "lab",
+      "reason": "环氧丙烷价格涨超六成，业绩有望翻倍"
+    },
+    {
+      "code": "688111",
+      "name": "金山办公",
+      "sector": "软件",
+      "type": "mid_cap_growth",
+      "tag": "lab",
+      "reason": "办公软件龙头，AI+办公概念"
+    }
+  ],
+  "etfs": [
+    "510300",
+    "510500",
+    "159915",
+    "512480"
+  ],
+  "convertible_bonds": [],
+  "last_updated": "2026-05-02T10:00:00",
+  "notes": "W18复盘更新。主账户持仓9只。实验账户持仓2只(宁德、金山办公)。寒武纪、中芯国际已止盈。永鼎转债、希望转债因零成交移除。",
+  "restored_at": "2026-04-22T09:30:00",
+  "restored_from": "reports/daily/2026-04-21.md",
+  "weekly_reviews": [
+    {
+      "week": "W17",
+      "date": "2026-04-25",
+      "summary": "主账户+0.56%跑输基准，实验账户+2.07%基本持平。v1.0.5补仓规则首次触发。下周关注蓝筹风格轮动和仓位提升。",
+      "removed_from_watchlist": [
+        "300274"
+      ],
+      "added_to_watchlist": []
+    },
+    {
+      "week": "W18",
+      "date": "2026-05-02",
+      "summary": "主账户+1.23%首次跑赢HS300，实验账户+0.85%。两笔止盈(寒武纪+15.96%、中芯+14.26%)。v1.0.5补仓规则验证成功。",
+      "removed_from_watchlist": [
+        "110058",
+        "127015"
+      ],
+      "added_to_watchlist": [
+        "300124"
+      ]
+    }
+  ]
+}

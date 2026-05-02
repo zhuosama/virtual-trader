@@ -1,0 +1,66 @@
+{
+  "date": "2026-04-20",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4082.13,
+      "change_pct": 0.76
+    },
+    "shenzhen_index": {
+      "close": 14966.75,
+      "change_pct": 0.55
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": 1084.58
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "sell",
+      "code": "600519",
+      "name": "贵州茅台",
+      "type": "stock",
+      "price": 1410.89,
+      "shares": 100,
+      "amount": 141089.0,
+      "commission": 42.33,
+      "stamp_tax": 141.09,
+      "transfer_fee": 0.28,
+      "total_cost": 183.7,
+      "net_proceeds": 140905.3,
+      "signal": "风控合规减持：茅台上市首亏重大利空，仓位14.2%超10%风控线，按盘前P0计划执行",
+      "strategy_ref": "risk_control"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "sell",
+      "code": "688256",
+      "name": "寒武纪",
+      "type": "stock",
+      "price": 1378.2,
+      "shares": 10,
+      "amount": 13782.0,
+      "commission": 5.0,
+      "stamp_tax": 13.78,
+      "transfer_fee": 0.03,
+      "total_cost": 18.81,
+      "net_proceeds": 13763.19,
+      "signal": "风控合规减持：仓位22.7%超20%风控线，10连涨后锁定部分利润",
+      "strategy_ref": "risk_control"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 996990.09,
+      "daily_pnl": 2957.0,
+      "daily_pnl_pct": 0.3
+    },
+    "lab": {
+      "total_value": 309965.01,
+      "daily_pnl": 1597.0,
+      "daily_pnl_pct": 0.53
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "date": "2026-04-21",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4085.08,
+      "change_pct": 1.44
+    },
+    "shenzhen_index": {
+      "close": 14982.14,
+      "change_pct": 3.34
+    },
+    "chinext_index": {
+      "close": 3688.94,
+      "change_pct": 0.31
+    }
+  },
+  "trades": [
+    {
+      "account": "lab",
+      "time": "09:30",
+      "action": "sell",
+      "code": "300750",
+      "name": "宁德时代",
+      "type": "stock",
+      "price": 447.6,
+      "shares": 100,
+      "amount": 44760.0,
+      "commission": 13.43,
+      "stamp_tax": 44.76,
+      "transfer_fee": 0.09,
+      "total_fees": 58.28,
+      "net_proceeds": 44701.72,
+      "signal": "仓位超限(28.8%>20%)，纪律性减持回归风控线",
+      "strategy_ref": "momentum_rotation"
+    }
+  ],
+  "account_snapshots": {
+    "lab": {
+      "total_value": 310899.73,
+      "daily_pnl": 993.0,
+      "daily_pnl_pct": 0.32
+    },
+    "main": {
+      "total_value": 997473.09,
+      "daily_pnl": 483.0,
+      "daily_pnl_pct": 0.05
+    }
+  }
+}

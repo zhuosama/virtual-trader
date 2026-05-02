@@ -1,0 +1,173 @@
+{
+  "main_strategy": {
+    "name": "价值趋势混合策略",
+    "version": "1.0.5",
+    "description": "高ROE/股息蓝筹底仓 + MA20/60趋势择时 + 商品价格维度（三维一体）+ 建仓节奏优化",
+    "iteration_history": "v1.0.0→v1.0.1(底仓建仓)→v1.0.2(建仓节奏优化)→v1.0.3(单笔仓位限制)→v1.0.4(商品价格维度)→v1.0.5(建仓节奏+仓位下限)",
+    "rationale": "主账户100万资金适合分散持有6-8只高确定性标的，以ROE>12%和稳定现金流为选股基石，叠加MA20/MA60趋势过滤控制回撤。回测发现核心问题是现金拖累(cash drag)——仓位仅37%导致跑输基准3.12%。v1.0.5重点优化建仓节奏，增加仓位下限预警，确保首周达到50%仓位。",
+    "rules": {
+      "entry": {
+        "condition": "高ROE(>12%)或高股息(>3%)蓝筹 + MA5>MA20或MA20>MA60趋势确认 + 板块估值合理",
+        "filters": [
+          "非ST股",
+          "日成交额>3亿",
+          "ROE>12%或股息率>3%",
+          "资产负债率<60%"
+        ]
+      },
+      "exit": {
+        "take_profit": "涨幅达15%或估值过高(PE>历史80%分位)",
+        "stop_loss": "跌幅达7-8%或基本面恶化",
+        "time_stop": "持有20个交易日无涨幅则减仓50%"
+      },
+      "position_sizing": {
+        "max_single_position": 0.08,
+        "min_single_position": 0.04,
+        "max_sector_exposure": 0.3,
+        "total_position_limit": 0.8,
+        "total_position_floor": 0.5,
+        "initial_position": 0.08,
+        "batch_building": "分3批建仓，每批间隔3-5个交易日，单批不超过8%，首周目标50%仓位",
+        "cash_drag_alert": "仓位低于50%时触发强制加仓流程，每周至少执行1笔买入",
+        "post_sell_replacement": "清仓后48h内必须制定补仓计划，释放资金不得闲置超过3个交易日"
+      },
+      "commodity_stock_rules": {
+        "applicable_sectors": [
+          "煤炭",
+          "有色",
+          "钢铁",
+          "化工",
+          "建材"
+        ],
+        "analysis_framework": "三维一体：基本面(40%)+市场面(30%)+商品价格(30%)",
+        "dynamic_adjustment": {
+          "coal_price_down_10pct": "reduce_position_20pct",
+          "market_style_to_growth": "reduce_position_10pct",
+          "dividend_yield_below_4.5pct": "consider_stop_loss",
+          "three_dimension_resonance_up": "increase_position_to_12pct"
+        },
+        "data_tracking": {
+          "commodity_price": "周度跟踪现货+期货",
+          "market_style": "日度观察板块轮动",
+          "fundamentals": "季度更新财报数据",
+          "policy": "月度关注行业政策"
+        }
+      }
+    },
+    "parameters": {
+      "min_roe": 12,
+      "min_dividend_yield": 3,
+      "take_profit_pct": 15,
+      "stop_loss_pct": 7,
+      "max_pe_percentile": 80,
+      "min_turnover_billion": 3,
+      "max_debt_ratio": 60,
+      "base_position_target": 0.65,
+      "min_single_batch": 0.04,
+      "max_single_batch": 0.08,
+      "coal_price_threshold": 800,
+      "dividend_yield_alert": 4.5,
+      "commodity_tracking_frequency": "weekly",
+      "max_single_position": 0.08,
+      "min_single_position": 0.04,
+      "position_floor": 0.5,
+      "post_sell_replacement_days": 3,
+      "cash_drag_alert_threshold": 0.5,
+      "first_week_target": 0.5
+    },
+    "learned_lessons": [
+      "格力电器单日大额买入导致仓位11.2%超限，下次应分批执行",
+      "茅台4/15高位建仓教训：需等待更明确趋势确认",
+      "底仓建仓节奏需更分散，每批间隔更长",
+      "中国神华分析：周期股需增加商品价格维度，煤价下跌10%→减仓20%",
+      "三维一体框架：基本面(40%)+市场面(30%)+商品价格(30%)",
+      "动态调整：煤价趋势+市场风格+股息率三因素决策",
+      "【回测v1.0.5】核心问题是现金拖累而非选股失误：7只持仓5只盈利，但63%资金闲置",
+      "【回测v1.0.5】建仓节奏必须加快：首周目标50%，两周内达到65%",
+      "【回测v1.0.5】单笔建仓下限4%：避免1-2%的无效小仓位",
+      "【回测v1.0.5】清仓后必须48h内补仓：茅台清仓释放14万闲置至今"
+    ],
+    "cyclical_stock_insights": {
+      "commodity_price_impact": "煤价下跌10%→净利润降3-4%，股息率降0.2-0.3个百分点",
+      "market_style_correlation": "煤炭板块与成长股呈负相关，风格切换期表现平淡",
+      "dynamic_position_rules": "煤价-10%→仓位-20%，成长风格→仓位-10%，股息率<4.5%→止损",
+      "data_sources": [
+        "秦皇岛5500大卡煤价",
+        "煤炭期货主力合约",
+        "六大发电集团库存"
+      ]
+    }
+  },
+  "lab_strategy": {
+    "name": "板块轮动+动量突破策略",
+    "version": "1.0.6",
+    "description": "捕捉板块轮动和动量突破机会，增加板块确认和换手率过滤，增加高弹性板块分批止盈规则",
+    "iteration_history": "v1.0.0→v1.0.1(量比1.5→1.3, trailing stop 5%→6%)→v1.0.2(trailing stop 6%→5.5%)→v1.0.3(量比1.3→1.4)→v1.0.4(参数优化)→v1.0.5(板块确认+换手率过滤+时间止损放宽)→v1.0.6(分批止盈规则)",
+    "rationale": "实验账户30万资金适合更灵活的操作。回测显示动量策略整体有效（胜率75%，累计+3.84%跑赢沪深300的+3.02%）。唯一亏损交易阳光电源是假突破。v1.0.5增加板块连续性确认和换手率过滤，减少假突破概率；时间止损从5天放宽到7天，给动量更多发酵空间。",
+    "rules": {
+      "entry": {
+        "condition": "板块轮动信号 + 放量突破20日高点 + MACD金叉 + 所属概念板块当日涨幅>2% + 板块连续2日上涨",
+        "filters": [
+          "非ST股",
+          "日成交额>3亿",
+          "量比>1.4",
+          "换手率>5%"
+        ]
+      },
+      "exit": {
+        "take_profit": "涨幅达12%或RSI超买(>75)",
+        "stop_loss": "跌幅达5.5-6%或跌破5日均线",
+        "time_stop": "持有7个交易日无涨幅则清仓",
+        "partial_profit": {
+          "applicable_sectors": [
+            "AI芯片",
+            "半导体",
+            "科创板"
+          ],
+          "first_take_profit_pct": 12,
+          "first_take_profit_ratio": 0.5,
+          "trailing_stop_pct": 0.05,
+          "description": "高弹性板块首次12%止盈50%仓位，剩余50%用5%trailing stop跟踪"
+        }
+      },
+      "position_sizing": {
+        "max_single_position": 0.2,
+        "max_sector_exposure": 0.4,
+        "total_position_limit": 0.9,
+        "initial_position": 0.15
+      }
+    },
+    "parameters": {
+      "breakout_lookback": 20,
+      "macd_fast": 12,
+      "macd_slow": 26,
+      "macd_signal": 9,
+      "take_profit_pct": 12,
+      "stop_loss_pct": 5.5,
+      "rsi_overbought": 75,
+      "volume_ratio_threshold": 1.4,
+      "turnover_rate_min": 5.0,
+      "sector_rise_threshold": 2,
+      "sector_consecutive_days": 2,
+      "trailing_stop_pct": 0.055,
+      "time_stop_days": 7,
+      "first_take_profit_pct": 12,
+      "first_take_profit_ratio": 0.5,
+      "trailing_stop_for_remaining": 0.05
+    },
+    "learned_lessons": [
+      "量比放宽至1.3增加了假突破风险（阳光电源案例）",
+      "量比1.4可有效过滤量能不足的假突破",
+      "trailing stop 5.5%比6%更早触发止损，减少单笔最大亏损",
+      "阳光电源假突破教训：量比过滤不能完全避免假突破",
+      "【回测v1.0.5】动量策略整体有效：75%胜率，盈利交易平均+10.6%",
+      "【回测v1.0.5】增加板块连续2日上涨确认，可过滤阳光电源类假突破",
+      "【回测v1.0.5】时间止损5天偏短，动量股需要更多时间发酵，放宽到7天",
+      "【回测v1.0.5】换手率>5%过滤低活跃度标的，减少假突破概率",
+      "【4/30教训】寒武纪止盈后次日涨停+20%，AI/半导体高弹性股12%止盈线偏保守",
+      "【4/30改进方向】高弹性板块应分批止盈：首次50%仓位止盈，剩余用5% trailing stop跟踪",
+      "【4/30验证】中芯国际止盈+14.26%成功，动量策略第2次成功止盈（累计立讯+15.7%、中芯+14.3%）",
+      "【W18教训】寒武纪12%止盈后次日涨停+20%，高弹性股需要分批止盈：先止盈50%锁定利润，剩余用trailing stop跟踪"
+    ]
+  }
+}
