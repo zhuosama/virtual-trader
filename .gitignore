@@ -7,6 +7,8 @@ market-data/*.json
 
 # Sensitive account state (contains real portfolio values)
 accounts/*.json
+# Demo files are allowed
+!accounts/*.demo.json
 
 # Python
 __pycache__/

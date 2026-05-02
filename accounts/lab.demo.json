@@ -1,0 +1,46 @@
+{
+  "_comment": "DEMO DATA — anonymized from real account. Stock codes and prices are public market data. Portfolio values scaled to demo equivalents.",
+  "id": "lab",
+  "name": "Lab Strategy Account (Demo)",
+  "initial_capital": 30000,
+  "cash": 24599,
+  "positions": [
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "type": "stock",
+      "shares": 10,
+      "avg_cost": 427.27,
+      "buy_date": "2026-04-13",
+      "buy_price": 427.27,
+      "current_price": 436.00,
+      "market_value": 4360,
+      "unrealized_pnl": 87,
+      "unrealized_pnl_pct": 2.04
+    },
+    {
+      "code": "688111",
+      "name": "金山办公",
+      "type": "stock",
+      "shares": 10,
+      "avg_cost": 248.53,
+      "buy_date": "2026-04-14",
+      "buy_price": 248.53,
+      "current_price": 251.94,
+      "market_value": 2519,
+      "unrealized_pnl": 34,
+      "unrealized_pnl_pct": 1.37
+    }
+  ],
+  "portfolio_market_value": 6879,
+  "total_value": 31478,
+  "total_pnl": 1478,
+  "total_pnl_pct": 4.93,
+  "max_drawdown": 0.0044,
+  "position_pct": 21.85,
+  "trade_count": 11,
+  "win_rate": 0.67,
+  "sharpe_ratio": null,
+  "inception_date": "2026-04-13",
+  "updated_at": "2026-04-30T15:00:00"
+}

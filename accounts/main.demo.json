@@ -1,0 +1,72 @@
+{
+  "_comment": "DEMO DATA — anonymized from real account. Stock codes and prices are public market data. Portfolio values scaled to demo equivalents.",
+  "id": "main",
+  "name": "Main Strategy Account (Demo)",
+  "initial_capital": 100000,
+  "cash": 50687,
+  "positions": [
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "type": "stock",
+      "shares": 180,
+      "avg_cost": 26.43,
+      "buy_date": "2026-04-13",
+      "buy_price": 26.42,
+      "current_price": 27.32,
+      "market_value": 4918,
+      "unrealized_pnl": 160,
+      "unrealized_pnl_pct": 3.37
+    },
+    {
+      "code": "002415",
+      "name": "海康威视",
+      "type": "stock",
+      "shares": 150,
+      "avg_cost": 32.66,
+      "buy_date": "2026-04-13",
+      "buy_price": 32.65,
+      "current_price": 36.29,
+      "market_value": 5444,
+      "unrealized_pnl": 544,
+      "unrealized_pnl_pct": 11.11
+    },
+    {
+      "code": "000651",
+      "name": "格力电器",
+      "type": "stock",
+      "shares": 300,
+      "avg_cost": 37.29,
+      "buy_date": "2026-04-16",
+      "buy_price": 37.28,
+      "current_price": 40.05,
+      "market_value": 12015,
+      "unrealized_pnl": 828,
+      "unrealized_pnl_pct": 7.40
+    },
+    {
+      "code": "601088",
+      "name": "中国神华",
+      "type": "stock",
+      "shares": 200,
+      "avg_cost": 45.53,
+      "buy_date": "2026-04-16",
+      "buy_price": 45.52,
+      "current_price": 48.00,
+      "market_value": 9600,
+      "unrealized_pnl": 493,
+      "unrealized_pnl_pct": 5.42
+    }
+  ],
+  "portfolio_market_value": 50480,
+  "total_value": 101167,
+  "total_pnl": 1167,
+  "total_pnl_pct": 1.17,
+  "max_drawdown": 0.0078,
+  "position_pct": 49.9,
+  "trade_count": 12,
+  "win_rate": 0.28,
+  "sharpe_ratio": null,
+  "inception_date": "2026-04-13",
+  "updated_at": "2026-04-30T15:00:00"
+}
