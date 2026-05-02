@@ -11,8 +11,7 @@
 ## Why This Exists
 
 A 5-agent autonomous trading system for Chinese A-shares. Inspired by
-the multi-agent architectures explored in [tradingagents-fork](TBD,
-will link in Week 2), but built ground-up for production deployment with
+the multi-agent architectures explored in [tradingagents-fork](https://github.com/zhuosama/tradingagents-ashare-ri/tree/feature/regular-investment), but built ground-up for production deployment with
 sector-aware analysis and self-iterating strategy refinement.
 
 ## The Coal Price Story (Origin of v1.0.5 / v1.0.6)
@@ -202,12 +201,11 @@ python3 scripts/update_perf.py
 
 This is the **production deployment**.
 
-The research started with a fork of the [TradingAgents framework](TBD)
+The research started with a fork of the [TradingAgents framework](https://github.com/zhuosama/tradingagents-ashare-ri/tree/feature/regular-investment)
 (LangGraph-based multi-agent trading research project). After studying
 its architecture and running exploratory analyses on US stocks, I built
 this from scratch as a production-focused, A-share-specialized,
-self-iterating system. The fork lives at [tradingagents-fork](TBD,
-linked in Week 2).
+self-iterating system. The fork lives at [tradingagents-fork](https://github.com/zhuosama/tradingagents-ashare-ri/tree/feature/regular-investment).
 
 The two-project arc:
 
