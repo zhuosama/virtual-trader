@@ -1,0 +1,24 @@
+# Backups
+backups/
+
+# Cached market data (re-fetchable from API)
+market-data/*.json
+!market-data/watchlist.json
+
+# Sensitive account state (contains real portfolio values)
+accounts/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
