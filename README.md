@@ -65,6 +65,26 @@ graph TD
     BT[backtest_engine.py<br/>748 LOC] -.->|offline validation| STRAT
 ```
 
+### Audit Layer (v2026-05-14)
+
+Strategy proposals from `strategy_maintainer.py` are gated by an independent
+audit layer before any change reaches `active.json`:
+
+- **Overfitting Auditor**: rejects single-event-triggered strategy changes
+  and OOS-degrading proposals (strategy type only)
+- **Risk Auditor**: rejects proposals that weaken stops or violate
+  `references/risk-rules.md` (all types)
+- **Cost & Execution Auditor**: rejects T+0 assumptions, turnover increases
+  without signal-strength compensation, or impossible liquidity assumptions
+  (all types)
+
+Decision rule: **3/3 unanimous approve → auto-merge**; 2/3 → human review;
+≤1/3 → auto-reject with feedback to `review_agent`. INFRA_ERROR (timeout /
+malformed LLM response) → pending retry, never fed back as strategy signal.
+
+See `~/.hermes/specs/2026-05-14-virtual-trader-audit-layer-design.md` for
+the full design.
+
 5 specialized agents coordinated by a central coordinator:
 
 | Agent | LOC | Responsibility |
