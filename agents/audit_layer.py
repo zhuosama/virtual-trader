@@ -210,3 +210,62 @@ def run_cost_execution_auditor(
         + "\n```\n"
     )
     return call_auditor("cost_execution_auditor", full_prompt, llm_client=llm_client, model=model)
+
+
+def review(
+    proposal: dict,
+    changelog: list,
+    oos_backtest: dict,
+    risk_rules: str,
+    current_portfolio: dict,
+    recent_trades: list,
+    current_account: dict,
+    llm_client,
+    audit_log_path: str | None = None,
+    model: str = "deepseek-v4-pro",
+) -> dict:
+    """Top-level audit_layer entry point.
+
+    Dispatches all 3 reviewers, aggregates verdicts via aggregate_verdicts,
+    and appends the result to audit_log.json. Returns the decision dict.
+    See spec §6.
+    """
+    from datetime import datetime, timezone
+
+    validate_proposal(proposal)
+
+    overfitting = run_overfitting_auditor(
+        proposal=proposal, changelog=changelog, oos_backtest=oos_backtest,
+        llm_client=llm_client, model=model,
+    )
+    risk = run_risk_auditor(
+        proposal=proposal, risk_rules=risk_rules, current_portfolio=current_portfolio,
+        llm_client=llm_client, model=model,
+    )
+    cost = run_cost_execution_auditor(
+        proposal=proposal, recent_trades=recent_trades, current_account=current_account,
+        llm_client=llm_client, model=model,
+    )
+
+    verdicts = [overfitting, risk, cost]
+    decision = aggregate_verdicts(verdicts)
+
+    log_entry = {
+        "proposal_id": proposal["proposal_id"],
+        "audited_at": datetime.now(timezone.utc).isoformat(),
+        "decision": decision["decision"],
+        "reason": decision.get("reason", ""),
+        "verdicts": {
+            "overfitting": overfitting,
+            "risk": risk,
+            "cost_execution": cost,
+        },
+        "oos_backtest_summary": oos_backtest,
+    }
+    append_audit_log(log_entry, log_path=audit_log_path)
+
+    return {
+        **decision,
+        "verdicts": {"overfitting": overfitting, "risk": risk, "cost_execution": cost},
+        "proposal_id": proposal["proposal_id"],
+    }
