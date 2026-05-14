@@ -122,3 +122,45 @@ def append_audit_log(entry: dict, log_path: str | None = None) -> None:
     with open(tmp, "w") as f:
         _json.dump(data, f, ensure_ascii=False, indent=2)
     _os.replace(tmp, path)
+
+
+def _load_prompt(name: str) -> str:
+    """Read a reviewer prompt file from agents/audit_prompts/."""
+    here = _os.path.dirname(_os.path.abspath(__file__))
+    path = _os.path.join(here, "audit_prompts", name)
+    with open(path) as f:
+        return f.read()
+
+
+def run_overfitting_auditor(
+    proposal: dict,
+    changelog: list,
+    oos_backtest: dict,
+    llm_client,
+    model: str = "deepseek-v4-pro",
+) -> dict:
+    """Run the Overfitting Auditor on a proposal.
+
+    For change_type != strategy: short-circuit APPROVE without LLM call.
+    Otherwise: dispatch LLM with the prompt + structured inputs.
+    """
+    if proposal.get("change_type") != "strategy":
+        return {
+            "verdict": "APPROVE",
+            "in_scope": False,
+            "reasoning": f"not in scope: change_type={proposal.get('change_type')}",
+        }
+
+    from .audit_subagent import call_auditor
+    prompt_template = _load_prompt("overfitting_auditor.md")
+    full_prompt = (
+        prompt_template
+        + "\n\n---\n\n## 当前 proposal\n```json\n"
+        + _json.dumps(proposal, ensure_ascii=False, indent=2)
+        + "\n```\n\n## changelog\n```json\n"
+        + _json.dumps(changelog, ensure_ascii=False, indent=2)
+        + "\n```\n\n## oos_backtest\n```json\n"
+        + _json.dumps(oos_backtest, ensure_ascii=False, indent=2)
+        + "\n```\n"
+    )
+    return call_auditor("overfitting_auditor", full_prompt, llm_client=llm_client, model=model)
