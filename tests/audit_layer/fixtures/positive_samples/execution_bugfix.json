@@ -1,0 +1,16 @@
+{
+  "proposal_id": "positive-exec-001",
+  "proposed_at": "2026-05-14T00:00:00Z",
+  "proposer": "test_fixture",
+  "account": "main",
+  "change_type": "execution",
+  "current_version": "1.0.5",
+  "proposed_version": "1.0.5",
+  "diff": [
+    {"path": "execution_planner.batching_logic", "old": "未实际分批", "new": "按 batch_building 规则真正分 3 批"}
+  ],
+  "triggering_events": [
+    {"date": "2026-04-22", "ticker": "000651", "event": "格力电器单日 11.1% 仓位超限，分批逻辑未生效"}
+  ],
+  "rationale": "execution_planner 的分批建仓代码 bug：循环里 break 过早，每次只下了 1 批。修这个 bug，不改任何策略参数。"
+}

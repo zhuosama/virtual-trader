@@ -1,0 +1,16 @@
+{
+  "proposal_id": "positive-risk-001",
+  "proposed_at": "2026-05-14T00:00:00Z",
+  "proposer": "test_fixture",
+  "account": "main",
+  "change_type": "risk",
+  "current_version": "1.0.5",
+  "proposed_version": "1.0.5",
+  "diff": [
+    {"path": "main_strategy.parameters.stop_loss_pct", "old": 0.07, "new": 0.06}
+  ],
+  "triggering_events": [
+    {"date": "2026-05-13", "event": "周度风控复盘，建议收紧"}
+  ],
+  "rationale": "把单笔止损线从 7% 收紧到 6%，减少单笔最大亏损"
+}
