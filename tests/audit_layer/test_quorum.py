@@ -40,5 +40,53 @@ class TestProposalSchema(unittest.TestCase):
         self.assertIn("change_type", str(ctx.exception))
 
 
+class TestQuorum(unittest.TestCase):
+    def _verdict(self, kind):
+        return {"verdict": kind, "reasoning": "test"}
+
+    def test_3_of_3_approve_auto_merge(self):
+        from agents.audit_layer import aggregate_verdicts
+        result = aggregate_verdicts([self._verdict("APPROVE")] * 3)
+        self.assertEqual(result["decision"], "AUTO_MERGE")
+        self.assertFalse(result["feed_back_to_review_agent"])
+
+    def test_2_approve_1_reject_human_review(self):
+        from agents.audit_layer import aggregate_verdicts
+        result = aggregate_verdicts(
+            [self._verdict("APPROVE"), self._verdict("APPROVE"), self._verdict("REJECT")]
+        )
+        self.assertEqual(result["decision"], "HUMAN_REVIEW")
+        self.assertFalse(result["feed_back_to_review_agent"])
+
+    def test_2_reject_auto_reject_feeds_back(self):
+        from agents.audit_layer import aggregate_verdicts
+        result = aggregate_verdicts(
+            [self._verdict("APPROVE"), self._verdict("REJECT"), self._verdict("REJECT")]
+        )
+        self.assertEqual(result["decision"], "AUTO_REJECT")
+        self.assertTrue(result["feed_back_to_review_agent"])
+
+    def test_concerns_counts_as_substantive_reject(self):
+        from agents.audit_layer import aggregate_verdicts
+        result = aggregate_verdicts(
+            [self._verdict("APPROVE"), self._verdict("CONCERNS"), self._verdict("CONCERNS")]
+        )
+        self.assertEqual(result["decision"], "AUTO_REJECT")
+
+    def test_any_infra_error_pending_retry_no_feedback(self):
+        from agents.audit_layer import aggregate_verdicts
+        result = aggregate_verdicts(
+            [self._verdict("APPROVE"), self._verdict("APPROVE"), self._verdict("INFRA_ERROR")]
+        )
+        self.assertEqual(result["decision"], "PENDING_RETRY")
+        self.assertFalse(result["feed_back_to_review_agent"])
+
+    def test_all_infra_error_still_pending_not_blocked(self):
+        # BLOCKED 在 retry 累计 3 次后才发生；单次审核 3/3 INFRA_ERROR 仍是 PENDING_RETRY
+        from agents.audit_layer import aggregate_verdicts
+        result = aggregate_verdicts([self._verdict("INFRA_ERROR")] * 3)
+        self.assertEqual(result["decision"], "PENDING_RETRY")
+
+
 if __name__ == "__main__":
     unittest.main()

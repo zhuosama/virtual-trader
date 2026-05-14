@@ -39,3 +39,43 @@ def validate_proposal(proposal: dict[str, Any]) -> None:
         raise ValueError("proposal.diff must be a list")
     if not isinstance(proposal["triggering_events"], list):
         raise ValueError("proposal.triggering_events must be a list")
+
+
+def aggregate_verdicts(verdicts: list[dict]) -> dict:
+    """Aggregate 3 reviewer verdicts into a quorum decision.
+
+    See spec §6.2. INFRA_ERROR is a separate state that does NOT count
+    toward substantive reject (it represents the reviewer being unable to
+    judge, not finding a problem). Any INFRA_ERROR triggers PENDING_RETRY
+    so review_agent doesn't get fed infra noise as strategy signal.
+    """
+    n_approve = sum(1 for v in verdicts if v["verdict"] == "APPROVE")
+    n_substantive_reject = sum(
+        1 for v in verdicts if v["verdict"] in ("REJECT", "CONCERNS")
+    )
+    n_infra = sum(1 for v in verdicts if v["verdict"] == "INFRA_ERROR")
+
+    if n_infra > 0:
+        return {
+            "decision": "PENDING_RETRY",
+            "reason": f"{n_infra}/3 reviewer 出现 infra 错误，下个 cron tick 重试",
+            "feed_back_to_review_agent": False,
+        }
+
+    if n_approve == 3:
+        return {
+            "decision": "AUTO_MERGE",
+            "reason": "3/3 unanimous approve",
+            "feed_back_to_review_agent": False,
+        }
+    if n_approve == 2:
+        return {
+            "decision": "HUMAN_REVIEW",
+            "reason": "2/3 approve, 1 substantive reject/concerns",
+            "feed_back_to_review_agent": False,
+        }
+    return {
+        "decision": "AUTO_REJECT",
+        "reason": f"{n_substantive_reject}/3 substantive reject",
+        "feed_back_to_review_agent": True,
+    }
