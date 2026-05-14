@@ -79,3 +79,46 @@ def aggregate_verdicts(verdicts: list[dict]) -> dict:
         "reason": f"{n_substantive_reject}/3 substantive reject",
         "feed_back_to_review_agent": True,
     }
+
+
+import json as _json
+import os as _os
+
+VALID_DECISIONS = {"AUTO_MERGE", "HUMAN_REVIEW", "AUTO_REJECT", "PENDING_RETRY", "BLOCKED"}
+
+_DEFAULT_AUDIT_LOG_PATH = _os.path.expanduser(
+    "~/.hermes/virtual-trader/strategies/audit_log.json"
+)
+
+
+def append_audit_log(entry: dict, log_path: str | None = None) -> None:
+    """Append-only writer for strategies/audit_log.json.
+
+    Validates required fields and decision enum. Reads-merges-writes
+    in one shot (acceptable for low write frequency; not concurrency-safe).
+    See spec §7.
+    """
+    if "proposal_id" not in entry:
+        raise ValueError("audit_log entry missing required field: proposal_id")
+    if "audited_at" not in entry:
+        raise ValueError("audit_log entry missing required field: audited_at")
+    if "decision" not in entry:
+        raise ValueError("audit_log entry missing required field: decision")
+    if entry["decision"] not in VALID_DECISIONS:
+        raise ValueError(
+            f"audit_log entry decision={entry['decision']!r} not in "
+            f"{sorted(VALID_DECISIONS)}"
+        )
+
+    path = log_path or _DEFAULT_AUDIT_LOG_PATH
+    if _os.path.exists(path):
+        with open(path) as f:
+            data = _json.load(f)
+    else:
+        data = []
+    data.append(entry)
+    # atomic write via temp file
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        _json.dump(data, f, ensure_ascii=False, indent=2)
+    _os.replace(tmp, path)
