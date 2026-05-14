@@ -187,3 +187,26 @@ def run_risk_auditor(
         + "\n```\n"
     )
     return call_auditor("risk_auditor", full_prompt, llm_client=llm_client, model=model)
+
+
+def run_cost_execution_auditor(
+    proposal: dict,
+    recent_trades: list,
+    current_account: dict,
+    llm_client,
+    model: str = "deepseek-v4-pro",
+) -> dict:
+    """Run the Cost & Execution Auditor on a proposal. Applies to ALL change_types."""
+    from .audit_subagent import call_auditor
+    prompt_template = _load_prompt("cost_execution_auditor.md")
+    full_prompt = (
+        prompt_template
+        + "\n\n---\n\n## 当前 proposal\n```json\n"
+        + _json.dumps(proposal, ensure_ascii=False, indent=2)
+        + "\n```\n\n## recent_trades (最近30天)\n```json\n"
+        + _json.dumps(recent_trades, ensure_ascii=False, indent=2)
+        + "\n```\n\n## current_account\n```json\n"
+        + _json.dumps(current_account, ensure_ascii=False, indent=2)
+        + "\n```\n"
+    )
+    return call_auditor("cost_execution_auditor", full_prompt, llm_client=llm_client, model=model)
