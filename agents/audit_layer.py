@@ -164,3 +164,26 @@ def run_overfitting_auditor(
         + "\n```\n"
     )
     return call_auditor("overfitting_auditor", full_prompt, llm_client=llm_client, model=model)
+
+
+def run_risk_auditor(
+    proposal: dict,
+    risk_rules: str,
+    current_portfolio: dict,
+    llm_client,
+    model: str = "deepseek-v4-pro",
+) -> dict:
+    """Run the Risk Auditor on a proposal. Applies to ALL change_types."""
+    from .audit_subagent import call_auditor
+    prompt_template = _load_prompt("risk_auditor.md")
+    full_prompt = (
+        prompt_template
+        + "\n\n---\n\n## 当前 proposal\n```json\n"
+        + _json.dumps(proposal, ensure_ascii=False, indent=2)
+        + "\n```\n\n## risk-rules.md\n"
+        + risk_rules
+        + "\n\n## current_portfolio\n```json\n"
+        + _json.dumps(current_portfolio, ensure_ascii=False, indent=2)
+        + "\n```\n"
+    )
+    return call_auditor("risk_auditor", full_prompt, llm_client=llm_client, model=model)
