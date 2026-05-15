@@ -403,10 +403,15 @@ class MultiAgentCoordinator:
             try:
                 settlement = self.run_settlement()
                 workflow_result['settlement'] = settlement
+                step_status = 'success'
+                if not settlement.get('accounts_updated', False):
+                    reason = settlement.get('degraded_reason', 'no price updates')
+                    workflow_result['warnings'].append(f"结算: {reason}")
+                    step_status = 'degraded'
                 workflow_result['steps'].append({
                     'step': 0,
                     'agent': 'settlement',
-                    'status': 'success',
+                    'status': step_status,
                     'output': f"主账户: {settlement.get('main_value', 0):,.0f} | 实验: {settlement.get('lab_value', 0):,.0f}"
                 })
             except Exception as e:
@@ -549,6 +554,7 @@ class MultiAgentCoordinator:
             if acct is None:
                 continue
             
+            old_total = acct.get('total_value', 0)
             updated = False
             for pos in acct.get('positions', []):
                 code = pos['code']
@@ -566,6 +572,10 @@ class MultiAgentCoordinator:
                 acct['total_pnl'] = acct['total_value'] - acct.get('initial_capital', 0)
                 acct['total_pnl_pct'] = round(acct['total_pnl'] / acct.get('initial_capital', 1) * 100, 2)
                 acct['position_pct'] = round(acct['portfolio_market_value'] / acct['total_value'] * 100, 1) if acct['total_value'] > 0 else 0
+                # Calculate real daily return from price change
+                if old_total > 0:
+                    acct['daily_pnl'] = acct['total_value'] - old_total
+                    acct['daily_pnl_pct'] = round(acct['daily_pnl'] / old_total * 100, 2)
                 acct['updated_at'] = f'{today}T15:00:00'
                 
                 # 写回文件

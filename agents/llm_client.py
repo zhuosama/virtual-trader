@@ -40,6 +40,9 @@ AGENT_MODEL_MAP = {
     "risk_controller": "deepseek-v4-pro",       # 关键风控判断
     "review_agent": "deepseek-v4-flash",        # 复盘分析
     "strategy_maintainer": "deepseek-v4-pro",   # 策略迭代决策
+    "overfitting_auditor": "deepseek-v4-pro",   # 审计：过拟合检测
+    "risk_auditor": "deepseek-v4-pro",          # 审计：风险评估
+    "cost_execution_auditor": "deepseek-v4-pro", # 审计：成本执行
 }
 
 
