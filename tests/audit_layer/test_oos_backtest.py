@@ -5,7 +5,23 @@ import unittest
 import pandas as pd
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+OLD_ROOT = os.path.expanduser("~/.hermes/virtual-trader")
+sys.path[:] = [p for p in sys.path if p not in {ROOT, OLD_ROOT}]
 sys.path.insert(0, ROOT)
+for module_name in list(sys.modules):
+    if module_name == "backtest" or module_name.startswith("backtest."):
+        del sys.modules[module_name]
+
+
+def import_run_backtest():
+    sys.path[:] = [p for p in sys.path if p not in {ROOT, OLD_ROOT}]
+    sys.path.insert(0, ROOT)
+    for module_name in list(sys.modules):
+        if module_name == "backtest" or module_name.startswith("backtest."):
+            del sys.modules[module_name]
+    from backtest.backtest_engine import run_backtest
+
+    return run_backtest
 
 
 def static_provider():
@@ -71,7 +87,7 @@ def static_provider():
 
 class TestOOSBacktest(unittest.TestCase):
     def test_oos_window_filters_trades(self):
-        from backtest.backtest_engine import run_backtest
+        run_backtest = import_run_backtest()
 
         trades_by_date = {
             "2026-04-15": [
@@ -97,7 +113,7 @@ class TestOOSBacktest(unittest.TestCase):
         self.assertGreater(len(df), 0)
 
     def test_backwards_compat_no_oos_with_injected_provider(self):
-        from backtest.backtest_engine import run_backtest
+        run_backtest = import_run_backtest()
 
         trades_by_date = {
             "2026-04-15": [
