@@ -112,12 +112,28 @@
     "lab_beat": true
   },
   {
-    "date": "2026-05-08",
-    "main_pct": 0.0,
-    "lab_pct": 0.0,
-    "hs300_pct": 0,
-    "main_beat": true,
+    "date": "2026-05-06",
+    "main_pct": -0.48,
+    "lab_pct": 1.04,
+    "hs300_pct": 1.45,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-05-07",
+    "main_pct": -0.47,
+    "lab_pct": 1.48,
+    "hs300_pct": 0.48,
+    "main_beat": false,
     "lab_beat": true
+  },
+  {
+    "date": "2026-05-08",
+    "main_pct": -0.09,
+    "lab_pct": -0.86,
+    "hs300_pct": -0.58,
+    "main_beat": true,
+    "lab_beat": false
   },
   {
     "date": "2026-05-11",
@@ -155,7 +171,7 @@
     "date": "2026-05-15",
     "main_pct": 0.05,
     "lab_pct": 0.78,
-    "hs300_pct": 0,
+    "hs300_pct": -1.12,
     "main_beat": true,
     "lab_beat": true
   }
