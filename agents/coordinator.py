@@ -610,8 +610,13 @@ class MultiAgentCoordinator:
             entry['main_beat'] = entry['main_pct'] >= entry['hs300_pct']
             entry['lab_beat'] = entry['lab_pct'] >= entry['hs300_pct']
             
-            # 追加，保留30天
-            perf.append(entry)
+            # Upsert by date — replace existing entry for today, don't duplicate
+            existing_idx = next((i for i, e in enumerate(perf) if e.get('date') == today), None)
+            if existing_idx is not None:
+                perf[existing_idx] = entry
+            else:
+                perf.append(entry)
+            # Keep last 30 days
             if len(perf) > 30:
                 perf = perf[-30:]
             
@@ -623,7 +628,10 @@ class MultiAgentCoordinator:
             logger.warning(f"更新绩效历史失败: {e}")
             results['performance_updated'] = False
         
-        results['accounts_updated'] = bool(results)
+        # accounts_updated only if we actually got new prices
+        results['accounts_updated'] = any(f'{a}_value' in results for a in ['main', 'lab'])
+        if not results['accounts_updated']:
+            results['degraded_reason'] = 'no price updates received'
         return results
 
     def _audit_strategy_adjustments(self, maintainer, adjustments: List[Dict], review_report: Dict) -> Dict:

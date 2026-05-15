@@ -134,37 +134,5 @@
     "hs300_pct": -1.12,
     "main_beat": true,
     "lab_beat": false
-  },
-  {
-    "date": "2026-05-15",
-    "main_pct": -0.42,
-    "lab_pct": -2.03,
-    "hs300_pct": -1.12,
-    "main_beat": true,
-    "lab_beat": false
-  },
-  {
-    "date": "2026-05-15",
-    "main_pct": -0.42,
-    "lab_pct": -2.03,
-    "hs300_pct": -1.12,
-    "main_beat": true,
-    "lab_beat": false
-  },
-  {
-    "date": "2026-05-15",
-    "main_pct": -0.42,
-    "lab_pct": -2.03,
-    "hs300_pct": -1.12,
-    "main_beat": true,
-    "lab_beat": false
-  },
-  {
-    "date": "2026-05-15",
-    "main_pct": -0.12,
-    "lab_pct": 5.82,
-    "hs300_pct": -1.12,
-    "main_beat": true,
-    "lab_beat": true
   }
 ]

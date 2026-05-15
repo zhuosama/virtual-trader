@@ -262,32 +262,8 @@
   },
   {
     "date": "2026-05-15",
-    "account": "main",
-    "change_type": "strategy",
-    "description": "调整参数: max_single_position 0.1 -> 0.08",
-    "reason": "防止仓位超限",
-    "expected_effect": "优化策略表现",
-    "actual_effect": "",
-    "backfilled": false,
-    "triggering_event_count": 1,
-    "oos_validated": false
-  },
-  {
-    "date": "2026-05-15",
-    "account": "main",
-    "change_type": "strategy",
-    "description": "调整参数: max_single_position 0.1 -> 0.08",
-    "reason": "防止仓位超限",
-    "expected_effect": "优化策略表现",
-    "actual_effect": "",
-    "backfilled": false,
-    "triggering_event_count": 1,
-    "oos_validated": false
-  },
-  {
-    "date": "2026-05-15",
     "account": "system",
-    "change_type": "system_fix",
+    "change_type": "system",
     "description": "修复系统停摆14天（5/2-5/15）：(1)audit_layer相对导入崩溃；(2)风控死锁——risk_controller只REJECTED不生成sell action，strategy_maintainer反复收紧max_single_position；(3)LLM模块缺失导致INFRA_ERROR；(4)status永远返回success掩盖问题",
     "reason": "Claude Code调查发现五重叠加bug：coordinator不执行交易(只做复盘)、风控死锁、LLM缺失、相对导入崩溃、status语义错误",
     "expected_effect": "系统恢复正常运行：settlement→review→risk_reduction→strategy_audit全链路贯通",
@@ -296,7 +272,7 @@
   {
     "date": "2026-05-15",
     "account": "main",
-    "change_type": "risk_rule",
+    "change_type": "risk",
     "description": "新增风控减仓规则：risk_controller.generate_risk_reduction_actions()对存量超限持仓自动生成sell action，不再只REJECTED",
     "reason": "格力电器仓位12.9%超10%限制已持续2周，旧逻辑每天REJECT但不减仓，形成死锁",
     "expected_effect": "超限持仓自动生成减仓建议，不再死锁",
@@ -305,7 +281,7 @@
   {
     "date": "2026-05-15",
     "account": "both",
-    "change_type": "infra",
+    "change_type": "system",
     "description": "新增日终结算run_settlement()：腾讯API拉收盘价→mark-to-market→更新accounts→更新performance_history，即使无交易也执行",
     "reason": "5/8-5/15连续7天今日无交易但不结算，账户净值不更新",
     "expected_effect": "每个交易日都能更新净值和绩效追踪",

@@ -201,48 +201,17 @@ class StrategyMaintainerAgent:
         return adjustments
 
     def apply_adjustments(self, adjustments: List[Dict]) -> Dict:
-        """应用策略调整"""
-        logger.info("应用策略调整...")
+        """BLOCKED: direct write path is no longer allowed.
 
-        result = {
-            'timestamp': datetime.now().isoformat(),
-            'applied_adjustments': [],
-            'failed_adjustments': [],
-            'changelog_entries': []
-        }
-
-        # 应用每个调整
-        for adjustment in adjustments:
-            try:
-                if adjustment['type'] == 'parameter_adjustment':
-                    success = self._apply_parameter_adjustment(adjustment)
-                elif adjustment['type'] == 'rule_adjustment':
-                    success = self._apply_rule_adjustment(adjustment)
-                else:
-                    success = False
-
-                if success:
-                    result['applied_adjustments'].append(adjustment)
-
-                    # 创建changelog条目
-                    changelog_entry = self._create_changelog_entry(adjustment)
-                    result['changelog_entries'].append(changelog_entry)
-                else:
-                    result['failed_adjustments'].append(adjustment)
-
-            except Exception as e:
-                logger.error(f"应用调整失败: {e}")
-                result['failed_adjustments'].append(adjustment)
-
-        # 保存更新的策略
-        if result['applied_adjustments']:
-            self._save_strategies()
-
-        # 保存更新的changelog
-        if result['changelog_entries']:
-            self._save_changelog(result['changelog_entries'])
-
-        return result
+        Use propose() → audit_layer.review() → commit_approved() instead.
+        This method exists only for backwards-compatible call sites and
+        will raise to prevent silent bypass of the audit gate.
+        """
+        raise PermissionError(
+            "apply_adjustments() is blocked — strategy changes must go through "
+            "propose() → audit_layer.review() → commit_approved(). "
+            "Direct writes to active.json/changelog.json are not allowed."
+        )
 
     def _apply_parameter_adjustment(self, adjustment: Dict) -> bool:
         """应用参数调整"""

@@ -39,7 +39,7 @@ def call_auditor(
 
     # exceptions: no retry (infra is sick)
     try:
-        raw = llm_client.call(auditor_name, system="", user=prompt, model=model)
+        raw = llm_client.call(auditor_name, "", prompt)
         last_raw = raw if isinstance(raw, str) else repr(raw)
     except TimeoutError as exc:
         return _infra_error("timeout", 1, _excerpt(str(exc)))
@@ -53,7 +53,7 @@ def call_auditor(
 
     # retry once on malformed JSON
     try:
-        raw2 = llm_client.call(auditor_name, system="", user=prompt, model=model)
+        raw2 = llm_client.call(auditor_name, "", prompt)
         last_raw = raw2 if isinstance(raw2, str) else repr(raw2)
     except TimeoutError as exc:
         return _infra_error("timeout", 2, _excerpt(str(exc)))
