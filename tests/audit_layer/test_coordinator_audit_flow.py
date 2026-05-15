@@ -86,6 +86,7 @@ class FakeStrategyMaintainer:
 class TestCoordinatorAuditFlow(unittest.TestCase):
     def test_post_market_auto_merge_commits_only_after_audit(self):
         import coordinator
+        import tempfile, os, json
 
         fake_audit_layer = MagicMock()
         fake_audit_layer.review.return_value = {
@@ -95,8 +96,28 @@ class TestCoordinatorAuditFlow(unittest.TestCase):
         }
         coordinator.audit_layer = fake_audit_layer
 
+        # Use temp dir to avoid writing to real repo
+        tmpdir = tempfile.mkdtemp()
+        os.makedirs(os.path.join(tmpdir, "strategies"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdir, "references"), exist_ok=True)
+        # Copy needed files from ROOT
+        for src_name in ("strategies/active.json", "strategies/changelog.json"):
+            src = os.path.join(ROOT, src_name)
+            dst = os.path.join(tmpdir, src_name)
+            if os.path.exists(src):
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                import shutil
+                shutil.copy2(src, dst)
+        with open(os.path.join(tmpdir, "references", "risk-rules.md"), 'w') as f:
+            f.write("# Risk Rules\n")
+
         c = coordinator.MultiAgentCoordinator.__new__(coordinator.MultiAgentCoordinator)
-        c.data_dir = ROOT
+        c.data_dir = tmpdir
+        # Mock run_settlement to avoid API calls and file writes
+        c.run_settlement = MagicMock(return_value={
+            "accounts_updated": True, "main_value": 1000000,
+            "lab_value": 300000, "performance_updated": True,
+        })
         strategy = FakeStrategyMaintainer()
         from backtest.market_data import StaticPriceProvider
 
