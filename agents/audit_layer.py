@@ -151,7 +151,10 @@ def run_overfitting_auditor(
             "reasoning": f"not in scope: change_type={proposal.get('change_type')}",
         }
 
-    from .audit_subagent import call_auditor
+    try:
+        from .audit_subagent import call_auditor
+    except ImportError:
+        from audit_subagent import call_auditor
     prompt_template = _load_prompt("overfitting_auditor.md")
     full_prompt = (
         prompt_template
@@ -174,7 +177,10 @@ def run_risk_auditor(
     model: str = "deepseek-v4-pro",
 ) -> dict:
     """Run the Risk Auditor on a proposal. Applies to ALL change_types."""
-    from .audit_subagent import call_auditor
+    try:
+        from .audit_subagent import call_auditor
+    except ImportError:
+        from audit_subagent import call_auditor
     prompt_template = _load_prompt("risk_auditor.md")
     full_prompt = (
         prompt_template
@@ -197,7 +203,10 @@ def run_cost_execution_auditor(
     model: str = "deepseek-v4-pro",
 ) -> dict:
     """Run the Cost & Execution Auditor on a proposal. Applies to ALL change_types."""
-    from .audit_subagent import call_auditor
+    try:
+        from .audit_subagent import call_auditor
+    except ImportError:
+        from audit_subagent import call_auditor
     prompt_template = _load_prompt("cost_execution_auditor.md")
     full_prompt = (
         prompt_template
@@ -233,6 +242,24 @@ def review(
     from datetime import datetime, timezone
 
     validate_proposal(proposal)
+
+    # P1 guard: llm_client must not be None
+    if llm_client is None:
+        log_entry = {
+            "proposal_id": proposal["proposal_id"],
+            "audited_at": datetime.now(timezone.utc).isoformat(),
+            "decision": "BLOCKED",
+            "reason": "LLM client is None — audit cannot proceed",
+            "verdicts": {},
+            "oos_backtest_summary": oos_backtest,
+        }
+        append_audit_log(log_entry, log_path=audit_log_path)
+        return {
+            "decision": "BLOCKED",
+            "reason": "LLM client is None — audit cannot proceed",
+            "verdicts": {},
+            "proposal_id": proposal["proposal_id"],
+        }
 
     overfitting = run_overfitting_auditor(
         proposal=proposal, changelog=changelog, oos_backtest=oos_backtest,

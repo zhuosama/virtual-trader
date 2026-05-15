@@ -264,6 +264,13 @@ class MultiAgentCoordinator:
             for warning in warnings[:2]:  # 只显示前2个
                 output_parts.append(f"• {warning}")
         
+        # LLM 洞察
+        llm_insight = market_analysis.get('llm_insight', '')
+        if llm_insight:
+            output_parts.append("")
+            output_parts.append("🧠 AI 洞察")
+            output_parts.append(llm_insight)
+        
         # 今日目标
         output_parts.append("")
         if decision == 'APPROVED':
@@ -312,6 +319,13 @@ class MultiAgentCoordinator:
         if risk_signals:
             output_parts.append(f"• 风险信号: {len(risk_signals)}个 ⚠️")
         
+        # LLM 洞察
+        llm_insight = market_analysis.get('llm_insight', '')
+        if llm_insight:
+            output_parts.append("")
+            output_parts.append("🧠 AI 洞察")
+            output_parts.append(llm_insight)
+        
         # 风险审查
         output_parts.append("")
         output_parts.append("⚠️ 风险审查: 需要修改 ⚠️")
@@ -349,6 +363,11 @@ class MultiAgentCoordinator:
         output_parts.append(f"📅 日期: {datetime.now().strftime('%Y-%m-%d (%A)')}")
         output_parts.append(f"⏰ 时间: {datetime.now().strftime('%H:%M')} 北京时间")
         
+        # LLM 洞察（从 workflow context 获取）
+        output_parts.append("")
+        output_parts.append("🧠 AI 洞察")
+        output_parts.append("交易计划被风控拒绝，请优先解决风控问题后再考虑交易。")
+        
         # 风险审查
         output_parts.append("")
         output_parts.append("⚠️ 风险审查: 拒绝 ❌")
@@ -374,14 +393,36 @@ class MultiAgentCoordinator:
             'workflow_type': 'post_market',
             'steps': [],
             'final_output': None,
-            'status': 'success'
+            'status': 'success',
+            'warnings': [],
         }
         
         try:
+            # 步骤0: 日终结算（mark-to-market）
+            logger.info("步骤0: 日终结算")
+            try:
+                settlement = self.run_settlement()
+                workflow_result['settlement'] = settlement
+                workflow_result['steps'].append({
+                    'step': 0,
+                    'agent': 'settlement',
+                    'status': 'success',
+                    'output': f"主账户: {settlement.get('main_value', 0):,.0f} | 实验: {settlement.get('lab_value', 0):,.0f}"
+                })
+            except Exception as e:
+                logger.error(f"结算失败: {e}")
+                workflow_result['warnings'].append(f"日终结算失败: {e}")
+                workflow_result['settlement'] = {'error': str(e)}
+            
             # 步骤1: Review Agent
             logger.info("步骤1: Review Agent")
             daily_data = self.agents['review_agent'].load_daily_data()
             review_report = self.agents['review_agent'].generate_review_report(daily_data)
+            
+            # 检查 review 中的 mistakes
+            mistakes = review_report.get('mistakes', [])
+            if mistakes:
+                workflow_result['warnings'].append(f"{len(mistakes)} 个风控问题待处理")
             
             workflow_result['steps'].append({
                 'step': 1,
@@ -389,6 +430,18 @@ class MultiAgentCoordinator:
                 'status': 'success',
                 'output': self.agents['review_agent'].generate_review_summary(review_report)
             })
+            
+            # 步骤1.5: 风控减仓检查（reduce-only）
+            if 'risk_controller' in self.agents:
+                logger.info("步骤1.5: 风控减仓检查")
+                risk_ctrl = self.agents['risk_controller']
+                reduction_result = risk_ctrl.validate_and_reduce()
+                risk_actions = reduction_result.get('risk_reduction_actions', [])
+                if risk_actions:
+                    for action in risk_actions:
+                        logger.warning(f"风控减仓建议: {action.get('name', '')} - {action.get('reason', '')}")
+                    workflow_result['risk_reduction_actions'] = risk_actions
+                    workflow_result['warnings'].append(f"{len(risk_actions)} 条减仓建议待执行")
             
             # 步骤2: Strategy Maintainer Agent
             logger.info("步骤2: Strategy Maintainer Agent")
@@ -402,19 +455,32 @@ class MultiAgentCoordinator:
             )
             update_report = maintainer.generate_strategy_update_report(performance_analysis, adjustments, apply_result)
             
+            # 检查审计决策
+            audit_decision = apply_result.get('audit_decision', '')
+            if audit_decision == 'BLOCKED':
+                workflow_result['warnings'].append("策略变更被阻止（LLM不可用）")
+            elif audit_decision == 'PENDING_RETRY':
+                workflow_result['warnings'].append("审计层 INFRA_ERROR，待重试")
+            elif audit_decision == 'AUTO_REJECT':
+                workflow_result['warnings'].append("策略变更被审计层拒绝")
+            
             workflow_result['steps'].append({
                 'step': 2,
                 'agent': 'strategy_maintainer',
                 'status': 'success',
-                'output': update_report.get('summary', '')
+                'output': update_report.get('summary', ''),
+                'audit_decision': audit_decision,
             })
             
-            # 最终输出
-            final_output = self._generate_post_market_output(review_report, update_report)
-            workflow_result['final_output'] = final_output
-            workflow_result['status'] = 'success'
+            # 最终状态判定
+            if workflow_result['warnings']:
+                workflow_result['status'] = 'degraded'
             
-            logger.info("盘后工作流完成")
+            # 最终输出
+            final_output = self._generate_post_market_output(review_report, update_report, workflow_result)
+            workflow_result['final_output'] = final_output
+            
+            logger.info(f"盘后工作流完成 (status={workflow_result['status']})")
             
         except Exception as e:
             logger.error(f"盘后工作流失败: {e}")
@@ -423,6 +489,142 @@ class MultiAgentCoordinator:
             workflow_result['final_output'] = f"盘后复盘失败: {e}"
         
         return workflow_result
+
+    def run_settlement(self) -> Dict:
+        """日终结算：mark-to-market 所有持仓，更新账户和绩效历史。
+        
+        即使今日无交易也必须执行。用收盘价更新持仓市值。
+        """
+        import subprocess
+        from datetime import datetime
+        
+        # 收集所有持仓代码
+        all_codes = []
+        accounts = {}
+        for acct_type in ['main', 'lab']:
+            path = os.path.join(self.data_dir, "accounts", f"{acct_type}.json")
+            try:
+                with open(path, 'r') as f:
+                    acct = json.load(f)
+                accounts[acct_type] = acct
+                for pos in acct.get('positions', []):
+                    all_codes.append(pos['code'])
+            except Exception as e:
+                logger.error(f"加载账户失败 {acct_type}: {e}")
+                accounts[acct_type] = None
+        
+        # 用腾讯 API 获取收盘价
+        prices = {}
+        if all_codes:
+            # 转换代码格式：600xxx→sh600xxx, 000xxx/002xxx→sz000xxx, 688xxx→sh688xxx, 300xxx→sz300xxx
+            tx_codes = []
+            for code in all_codes:
+                if code.startswith('6'):
+                    tx_codes.append(f'sh{code}')
+                else:
+                    tx_codes.append(f'sz{code}')
+            
+            try:
+                url = f"https://qt.gtimg.cn/q={','.join(tx_codes)}"
+                r = subprocess.run(['curl', '-s', '-m', '10', url], capture_output=True, timeout=15)
+                text = r.stdout.decode('gbk', errors='replace')
+                for line in text.strip().split(';'):
+                    if '~' not in line:
+                        continue
+                    parts = line.split('~')
+                    if len(parts) >= 38:
+                        code = parts[2]
+                        price = float(parts[3]) if parts[3] else 0
+                        if price > 0:
+                            prices[code] = price
+            except Exception as e:
+                logger.error(f"获取收盘价失败: {e}")
+                raise
+        
+        # 更新账户
+        results = {}
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        for acct_type, acct in accounts.items():
+            if acct is None:
+                continue
+            
+            updated = False
+            for pos in acct.get('positions', []):
+                code = pos['code']
+                if code in prices:
+                    price = prices[code]
+                    pos['current_price'] = price
+                    pos['market_value'] = pos['shares'] * price
+                    pos['unrealized_pnl'] = pos['market_value'] - pos['shares'] * pos['avg_cost']
+                    pos['unrealized_pnl_pct'] = round((price / pos['avg_cost'] - 1) * 100, 2)
+                    updated = True
+            
+            if updated:
+                acct['portfolio_market_value'] = sum(p['market_value'] for p in acct.get('positions', []))
+                acct['total_value'] = acct['portfolio_market_value'] + acct.get('cash', 0)
+                acct['total_pnl'] = acct['total_value'] - acct.get('initial_capital', 0)
+                acct['total_pnl_pct'] = round(acct['total_pnl'] / acct.get('initial_capital', 1) * 100, 2)
+                acct['position_pct'] = round(acct['portfolio_market_value'] / acct['total_value'] * 100, 1) if acct['total_value'] > 0 else 0
+                acct['updated_at'] = f'{today}T15:00:00'
+                
+                # 写回文件
+                path = os.path.join(self.data_dir, "accounts", f"{acct_type}.json")
+                with open(path, 'w') as f:
+                    json.dump(acct, f, ensure_ascii=False, indent=2)
+                
+                results[f'{acct_type}_value'] = acct['total_value']
+                results[f'{acct_type}_pnl'] = acct.get('daily_pnl', 0)
+                logger.info(f"结算完成 {acct_type}: {acct['total_value']:,.0f}")
+        
+        # 更新绩效历史
+        try:
+            perf_path = os.path.join(self.data_dir, "strategies", "performance_history.json")
+            perf = []
+            if os.path.exists(perf_path):
+                with open(perf_path) as f:
+                    perf = json.load(f)
+            
+            main_acct = accounts.get('main')
+            lab_acct = accounts.get('lab')
+            # 获取沪深300涨跌幅
+            hs300_pct = 0
+            try:
+                url = "https://qt.gtimg.cn/q=sh000300"
+                r = subprocess.run(['curl', '-s', '-m', '10', url], capture_output=True, timeout=15)
+                text = r.stdout.decode('gbk', errors='replace')
+                for line in text.strip().split(';'):
+                    if '~' in line:
+                        parts = line.split('~')
+                        if len(parts) >= 38 and parts[32]:
+                            hs300_pct = float(parts[32])
+            except Exception:
+                pass
+            
+            entry = {
+                'date': today,
+                'main_pct': main_acct.get('daily_pnl_pct', 0) if main_acct else 0,
+                'lab_pct': lab_acct.get('daily_pnl_pct', 0) if lab_acct else 0,
+                'hs300_pct': hs300_pct,
+            }
+            entry['main_beat'] = entry['main_pct'] >= entry['hs300_pct']
+            entry['lab_beat'] = entry['lab_pct'] >= entry['hs300_pct']
+            
+            # 追加，保留30天
+            perf.append(entry)
+            if len(perf) > 30:
+                perf = perf[-30:]
+            
+            with open(perf_path, 'w') as f:
+                json.dump(perf, f, ensure_ascii=False, indent=2)
+            
+            results['performance_updated'] = True
+        except Exception as e:
+            logger.warning(f"更新绩效历史失败: {e}")
+            results['performance_updated'] = False
+        
+        results['accounts_updated'] = bool(results)
+        return results
 
     def _audit_strategy_adjustments(self, maintainer, adjustments: List[Dict], review_report: Dict) -> Dict:
         """Audit strategy adjustments before any write to active.json/changelog."""
@@ -433,6 +635,18 @@ class MultiAgentCoordinator:
                 'changelog_entries': [],
                 'audit_decision': 'NO_CHANGES',
                 'audit_reason': 'no strategy adjustments proposed',
+            }
+
+        # P1 guard: never pass None llm_client to audit_layer
+        llm = getattr(maintainer, "llm", None)
+        if llm is None:
+            logger.error("LLM 不可用，策略变更被阻止（不允许绕过审计层）")
+            return {
+                'applied_adjustments': [],
+                'failed_adjustments': adjustments,
+                'changelog_entries': [],
+                'audit_decision': 'BLOCKED',
+                'audit_reason': 'LLM client unavailable — audit layer cannot run, changes blocked by policy',
             }
 
         proposal = maintainer.propose(adjustments)
@@ -446,7 +660,7 @@ class MultiAgentCoordinator:
             current_portfolio=review_report.get("accounts", {}),
             recent_trades=self._load_recent_trades(),
             current_account=review_report.get("accounts", {}).get(proposal.get("account", ""), {}),
-            llm_client=getattr(maintainer, "llm", None),
+            llm_client=llm,
             audit_log_path=audit_log_path,
         )
 
@@ -621,9 +835,25 @@ class MultiAgentCoordinator:
 
         return recent_trades[-200:]
     
-    def _generate_post_market_output(self, review_report: Dict, update_report: Dict) -> str:
+    def _generate_post_market_output(self, review_report: Dict, update_report: Dict, workflow_result: Dict = None) -> str:
         """生成盘后输出"""
         output_parts = []
+        
+        # P3: 显示警告
+        warnings = (workflow_result or {}).get('warnings', [])
+        if warnings:
+            output_parts.append("⚠️ 警告")
+            for w in warnings:
+                output_parts.append(f"  • {w}")
+            output_parts.append("")
+        
+        # P2: 显示减仓建议
+        risk_actions = (workflow_result or {}).get('risk_reduction_actions', [])
+        if risk_actions:
+            output_parts.append("🔴 风控减仓建议（reduce-only）")
+            for action in risk_actions:
+                output_parts.append(f"  • {action.get('account','')}/{action.get('name','')}({action.get('code','')}): {action.get('reason','')}")
+            output_parts.append("")
         
         # 标题和时间
         output_parts.append("📊 虚拟盘盘后复盘")

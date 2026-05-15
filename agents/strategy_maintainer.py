@@ -50,10 +50,14 @@ class StrategyMaintainerAgent:
     def _init_llm(self):
         """初始化 LLM 客户端"""
         try:
+            from agents.llm_client import LLMClient
+        except ImportError:
             from llm_client import LLMClient
+        try:
             self.llm = LLMClient(config_path=os.path.join(os.path.dirname(__file__), "config.json"))
         except Exception as e:
             logger.warning(f"LLM 初始化失败: {e}")
+            self.llm = None
 
     def _llm_strategy_advice(self, performance: str, current_strategy: str, changelog: str) -> str:
         """用 LLM 获取策略调整建议"""
