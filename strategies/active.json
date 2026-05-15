@@ -89,7 +89,14 @@
       "【5/15教训】风控死锁：risk_controller只REJECTED不减仓+strategy_maintainer反复收紧max_single_position=系统停摆14天",
       "【5/15教训】coordinator不执行交易/结算：post_market只做复盘+策略迭代，必须有独立settlement步骤",
       "【5/15教训】status永远success掩盖问题：必须区分success/degraded/failed",
-      "【5/15教训】LLM缺失时audit BLOCKED，不允许绕过审计层直接apply_adjustments"
+      "【5/15教训】LLM缺失时audit BLOCKED，不允许绕过审计层直接apply_adjustments",
+      "任何历史数据修复必须先定义 ledger invariants，修复后跑校验",
+      "测试不得使用真实 VTRADER_HOME，必须 tempdir + mock",
+      "workflow status 不能永远 success，必须区分 success/degraded/failed",
+      "回补交易必须标注 execution_type: executed/backfill/simulated",
+      "HS300 benchmark 绝不写 0 占位，缺失时标注 reason",
+      "performance_history 按日期 upsert，不 append，防止重复",
+      "三套账(perf/trade/report)必须一致性校验通过才能提交"
     ],
     "cyclical_stock_insights": {
       "commodity_price_impact": "煤价下跌10%→净利润降3-4%，股息率降0.2-0.3个百分点",
@@ -175,7 +182,14 @@
       "【5/15教训】风控死锁：risk_controller只REJECTED不减仓+strategy_maintainer反复收紧max_single_position=系统停摆14天",
       "【5/15教训】coordinator不执行交易/结算：post_market只做复盘+策略迭代，必须有独立settlement步骤",
       "【5/15教训】status永远success掩盖问题：必须区分success/degraded/failed",
-      "【5/15教训】LLM缺失时audit BLOCKED，不允许绕过审计层直接apply_adjustments"
+      "【5/15教训】LLM缺失时audit BLOCKED，不允许绕过审计层直接apply_adjustments",
+      "任何历史数据修复必须先定义 ledger invariants，修复后跑校验",
+      "测试不得使用真实 VTRADER_HOME，必须 tempdir + mock",
+      "workflow status 不能永远 success，必须区分 success/degraded/failed",
+      "回补交易必须标注 execution_type: executed/backfill/simulated",
+      "HS300 benchmark 绝不写 0 占位，缺失时标注 reason",
+      "performance_history 按日期 upsert，不 append，防止重复",
+      "三套账(perf/trade/report)必须一致性校验通过才能提交"
     ]
   }
 }
