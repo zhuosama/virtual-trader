@@ -574,10 +574,20 @@ class MultiAgentCoordinator:
                     if filename.endswith(".json"):
                         trade_days.add(filename[:-5])
 
+        candidate_starts = [datetime.now() - timedelta(days=90)]
         if trade_days:
-            start = datetime.strptime(min(trade_days), "%Y-%m-%d")
-        else:
-            start = datetime.now() - timedelta(days=90)
+            candidate_starts.append(datetime.strptime(min(trade_days), "%Y-%m-%d"))
+
+        changelog = self._read_json(os.path.join(self.data_dir, "strategies", "changelog.json"), [])
+        changelog_dates = [
+            entry.get("date")
+            for entry in changelog
+            if isinstance(entry, dict) and entry.get("date")
+        ]
+        if changelog_dates:
+            candidate_starts.append(datetime.strptime(min(changelog_dates), "%Y-%m-%d"))
+
+        start = min(candidate_starts)
 
         end = datetime.now()
         calendar = []
