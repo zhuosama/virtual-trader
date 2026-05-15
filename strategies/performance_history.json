@@ -129,7 +129,7 @@
   },
   {
     "date": "2026-05-08",
-    "main_pct": -0.09,
+    "main_pct": -0.1,
     "lab_pct": -0.86,
     "hs300_pct": -0.58,
     "main_beat": true,
@@ -169,8 +169,8 @@
   },
   {
     "date": "2026-05-15",
-    "main_pct": 0.05,
-    "lab_pct": 0.78,
+    "main_pct": 0.1,
+    "lab_pct": 0.74,
     "hs300_pct": -1.12,
     "main_beat": true,
     "lab_beat": true

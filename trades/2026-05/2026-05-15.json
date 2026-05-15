@@ -11,13 +11,13 @@
   "account_snapshots": {
     "main": {
       "total_value": 998871.71,
-      "daily_pnl": 519.0,
-      "daily_pnl_pct": 0.05
+      "daily_pnl": 951.71,
+      "daily_pnl_pct": 0.1
     },
     "lab": {
-      "total_value": 318584.18000000005,
-      "daily_pnl": 2465.0,
-      "daily_pnl_pct": 0.78
+      "total_value": 318584.18,
+      "daily_pnl": 2355.18,
+      "daily_pnl_pct": 0.74
     }
   }
 }
