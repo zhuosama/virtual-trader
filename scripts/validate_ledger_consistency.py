@@ -224,9 +224,11 @@ class LedgerValidator:
         for f in Path(reports_dir).glob("20??-??-??.md"):
             observed.add(f.stem)
 
-        # agents/workflows/
+        # agents/workflows/ (only post_market/pre_market, skip weekly)
         wf_dir = os.path.join(self.root, "agents", "workflows")
         for f in Path(wf_dir).glob("workflow_*.json"):
+            if "weekly" in f.name:
+                continue  # weekly reviews are not ledger dates
             m = re.search(r"(\d{8})", f.name)
             if m:
                 d = m.group(1)

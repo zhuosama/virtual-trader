@@ -35,7 +35,11 @@
       "net_amount": 55282.93,
       "signal": "止损：浮亏-8.90%超过7%止损线(成本101.27，止损价94.29已破)",
       "strategy_ref": "value_trend_main",
-      "realized_pnl": -5406.0
+      "realized_pnl": -5406.0,
+      "execution_type": "executed",
+      "source": "live_cron",
+      "generated_at": "2026-05-06T15:00:00",
+      "rationale": "cron agent 实时执行"
     },
     {
       "account": "lab",
@@ -53,7 +57,11 @@
       "total_cost": 22.74,
       "total_amount": 71092.74,
       "signal": "动量突破：工业自动化龙头，节后延续强势+3.6%，按盘前计划建仓",
-      "strategy_ref": "momentum_breakout"
+      "strategy_ref": "momentum_breakout",
+      "execution_type": "executed",
+      "source": "live_cron",
+      "generated_at": "2026-05-06T15:00:00",
+      "rationale": "cron agent 实时执行"
     },
     {
       "account": "lab",
@@ -71,7 +79,11 @@
       "total_cost": 13.34,
       "total_amount": 41713.34,
       "signal": "板块轮动：券商+互联网属性，节后市场放量上涨+2.41%，按盘前计划建仓",
-      "strategy_ref": "momentum_breakout"
+      "strategy_ref": "momentum_breakout",
+      "execution_type": "executed",
+      "source": "live_cron",
+      "generated_at": "2026-05-06T15:00:00",
+      "rationale": "cron agent 实时执行"
     }
   ],
   "account_snapshots": {

@@ -20,7 +20,11 @@
       "net_amount": 28981.69,
       "signal": "时间止损: 持有29天无涨幅",
       "date": "2026-05-13",
-      "realized_pnl_pct": -1.58
+      "realized_pnl_pct": -1.58,
+      "execution_type": "backfill",
+      "source": "yfinance_replay",
+      "generated_at": "2026-05-15T23:00:00",
+      "rationale": "时间止损: 持有29天无涨幅"
     }
   ],
   "account_snapshots": {

@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-VTRADER_ROOT = os.path.expanduser("~/.hermes/virtual-trader")
+VTRADER_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 class TestBackfillPreservesExistingDates(unittest.TestCase):
@@ -127,14 +127,56 @@ class TestSettlementWritesNotToRealRepo(unittest.TestCase):
             content = f.read()
 
         # The test must NOT set c.data_dir = ROOT directly
-        # It should use tempfile or mock
         self.assertNotIn("c.data_dir = ROOT", content,
                          "test uses ROOT as data_dir — will pollute real data")
-        # Should either use tmpdir or mock run_settlement
         self.assertTrue(
             "tmpdir" in content or "MagicMock" in content or "mock" in content,
             "test must use tmpdir or mock to avoid writing real data"
         )
+
+
+class TestBackfillTradesAnnotated(unittest.TestCase):
+    """All backfill-generated trades must have execution_type/source/rationale."""
+
+    def test_all_may_trades_have_execution_type(self):
+        """Every trade in trades/2026-05/ must have execution_type field."""
+        trades_dir = os.path.join(VTRADER_ROOT, "trades", "2026-05")
+        if not os.path.exists(trades_dir):
+            self.skipTest("no 2026-05 trade directory")
+
+        missing = []
+        for f in sorted(Path(trades_dir).glob("*.json")):
+            with open(f) as fh:
+                data = json.load(fh)
+            for t in data.get("trades", []):
+                if "execution_type" not in t:
+                    missing.append(f"{f.name}: {t.get('name', '?')} {t.get('action', '?')}")
+                elif t["execution_type"] not in ("executed", "backfill", "simulated"):
+                    missing.append(f"{f.name}: invalid execution_type={t['execution_type']}")
+
+        self.assertEqual(missing, [],
+                         f"Trades missing/invalid execution_type:\n  " +
+                         "\n  ".join(missing))
+
+    def test_backfill_trades_have_source_and_rationale(self):
+        """Backfill trades must also have source and rationale."""
+        trades_dir = os.path.join(VTRADER_ROOT, "trades", "2026-05")
+        if not os.path.exists(trades_dir):
+            self.skipTest("no 2026-05 trade directory")
+
+        missing = []
+        for f in sorted(Path(trades_dir).glob("*.json")):
+            with open(f) as fh:
+                data = json.load(fh)
+            for t in data.get("trades", []):
+                if t.get("execution_type") == "backfill":
+                    for field in ("source", "generated_at", "rationale"):
+                        if field not in t:
+                            missing.append(f"{f.name}: {t.get('name','?')} missing {field}")
+
+        self.assertEqual(missing, [],
+                         f"Backfill trades missing metadata:\n  " +
+                         "\n  ".join(missing))
 
 
 if __name__ == "__main__":

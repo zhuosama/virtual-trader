@@ -136,17 +136,6 @@
     "lab_beat": false
   },
   {
-    "date": "2026-05-09",
-    "main_pct": 0,
-    "lab_pct": 0,
-    "hs300_pct": 0,
-    "main_beat": false,
-    "lab_beat": false,
-    "non_trading_day": true,
-    "benchmark_note": "non-trading day (Friday holiday)",
-    "benchmark_source": "calendar"
-  },
-  {
     "date": "2026-05-11",
     "main_pct": 0.21,
     "lab_pct": 1.61,

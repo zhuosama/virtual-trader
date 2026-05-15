@@ -20,7 +20,11 @@
       "net_amount": 42643.64,
       "signal": "时间止损: 持有31天无涨幅",
       "date": "2026-05-14",
-      "realized_pnl_pct": -0.06
+      "realized_pnl_pct": -0.06,
+      "execution_type": "backfill",
+      "source": "yfinance_replay",
+      "generated_at": "2026-05-15T23:00:00",
+      "rationale": "时间止损: 持有31天无涨幅"
     },
     {
       "account": "lab",
@@ -34,7 +38,11 @@
       "net_amount": 40306.72,
       "signal": "时间止损: 持有8天无涨幅",
       "date": "2026-05-14",
-      "realized_pnl_pct": -3.21
+      "realized_pnl_pct": -3.21,
+      "execution_type": "backfill",
+      "source": "yfinance_replay",
+      "generated_at": "2026-05-15T23:00:00",
+      "rationale": "时间止损: 持有8天无涨幅"
     }
   ],
   "account_snapshots": {
