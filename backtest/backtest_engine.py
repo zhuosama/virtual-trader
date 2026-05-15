@@ -158,11 +158,22 @@ def load_trade_files(start_date=None, end_date=None):
     return trades_by_date
 
 
-def fetch_prices(tickers, start, end):
-    """Download historical close prices via yfinance."""
+def fetch_prices(tickers, start, end, provider=None):
+    """Download historical close prices via provider or legacy yfinance."""
     print(f"  Fetching {len(tickers)} tickers from {start} to {end}...")
-    data = yf.download(tickers, start=start, end=end, progress=False)
-    prices = data["Close"]
+    if provider is not None:
+        result = provider.get_close_prices(tickers, start, end)
+        if result.status != "OK":
+            raise RuntimeError(
+                f"price provider failed: status={result.status} "
+                f"reason={result.reason} missing={result.missing_symbols}"
+            )
+        prices = result.prices
+    else:
+        data = yf.download(tickers, start=start, end=end, progress=False)
+        prices = data["Close"]
+    if isinstance(prices, pd.Series):
+        prices = prices.to_frame(tickers[0])
     print(f"  Got {len(prices)} trading days, {prices.shape[1]} tickers")
     return prices
 
@@ -181,7 +192,7 @@ def collect_tickers(trades_by_date):
 
 
 # ---- Backtest Runner ----
-def run_backtest(trades_by_date, account_filter="all", oos_start=None, oos_end=None):
+def run_backtest(trades_by_date, account_filter="all", oos_start=None, oos_end=None, price_provider=None):
     """
     Replay trades and compute daily portfolio values.
 
@@ -195,6 +206,9 @@ def run_backtest(trades_by_date, account_filter="all", oos_start=None, oos_end=N
         Optional OOS window. If both set, only trades with date in
         [oos_start, oos_end] (inclusive, lexicographic on ISO date) are
         processed. If either is None, the full history is used (legacy).
+    price_provider : object | None
+        Optional provider exposing get_close_prices(tickers, start, end).
+        If omitted, legacy yfinance download behavior is preserved.
     """
     # OOS filter applied before existing processing
     if oos_start is not None and oos_end is not None:
@@ -210,7 +224,7 @@ def run_backtest(trades_by_date, account_filter="all", oos_start=None, oos_end=N
     start = (datetime.strptime(all_dates[0], "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
     end = (datetime.strptime(all_dates[-1], "%Y-%m-%d") + timedelta(days=3)).strftime("%Y-%m-%d")
 
-    prices = fetch_prices(tickers, start, end)
+    prices = fetch_prices(tickers, start, end, provider=price_provider)
     trading_dates = prices.index.tolist()
 
     # Initialize accounts
