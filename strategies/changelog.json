@@ -286,5 +286,41 @@
     "reason": "5/8-5/15连续7天今日无交易但不结算，账户净值不更新",
     "expected_effect": "每个交易日都能更新净值和绩效追踪",
     "actual_effect": "结算验证通过，主账户998,799/实验317,454已同步"
+  },
+  {
+    "date": "2026-05-08",
+    "account": "main",
+    "change_type": "execution",
+    "description": "回补执行: 卖出中国神华2000股@45.18（时间止损22天无涨幅，-0.77%）",
+    "reason": "策略回补: 持有超过20天止损规则触发",
+    "expected_effect": "释放9万现金",
+    "actual_effect": "实现亏损约-700"
+  },
+  {
+    "date": "2026-05-13",
+    "account": "main",
+    "change_type": "execution",
+    "description": "回补执行: 卖出中国平安500股@58.04（时间止损29天无涨幅，-1.58%）",
+    "reason": "策略回补: 持有超过20天止损规则触发",
+    "expected_effect": "释放2.9万现金",
+    "actual_effect": "实现亏损约-465"
+  },
+  {
+    "date": "2026-05-14",
+    "account": "lab",
+    "change_type": "execution",
+    "description": "回补执行: 卖出宁德时代100股@427.00（时间止损31天无涨幅，-0.06%）+ 东方财富2000股@20.18（时间止损8天无涨幅，-3.21%）",
+    "reason": "策略回补: 持有超过7天止损规则触发",
+    "expected_effect": "释放8.3万现金",
+    "actual_effect": "实现亏损约-1,673"
+  },
+  {
+    "date": "2026-05-15",
+    "account": "both",
+    "change_type": "system",
+    "description": "系统回补完成: 5/8-5/15策略信号回放+交易执行+mark-to-market",
+    "reason": "修复5/2-5/15系统停摆期间的缺失交易和结算",
+    "expected_effect": "账户状态与策略规则一致",
+    "actual_effect": "主998,872(-0.11%) 实318,584(+5.53%) 持仓从12只降至8只"
   }
 ]

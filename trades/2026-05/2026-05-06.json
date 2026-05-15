@@ -1,0 +1,89 @@
+{
+  "date": "2026-05-06",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4160.17,
+      "change_pct": 1.17
+    },
+    "shenzhen_index": {
+      "close": 15459.62,
+      "change_pct": 2.33
+    },
+    "hs300_index": {
+      "close": 4877.09,
+      "change_pct": 1.45
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": null
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "sell",
+      "code": "000858",
+      "name": "五粮液",
+      "type": "stock",
+      "price": 92.26,
+      "shares": 600,
+      "amount": 55356.0,
+      "commission": 16.61,
+      "stamp_tax": 55.36,
+      "transfer_fee": 1.11,
+      "total_cost": 73.07,
+      "net_amount": 55282.93,
+      "signal": "止损：浮亏-8.90%超过7%止损线(成本101.27，止损价94.29已破)",
+      "strategy_ref": "value_trend_main",
+      "realized_pnl": -5406.0
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "300124",
+      "name": "汇川技术",
+      "type": "stock",
+      "price": 71.07,
+      "shares": 1000,
+      "amount": 71070.0,
+      "commission": 21.32,
+      "stamp_tax": 0,
+      "transfer_fee": 1.42,
+      "total_cost": 22.74,
+      "total_amount": 71092.74,
+      "signal": "动量突破：工业自动化龙头，节后延续强势+3.6%，按盘前计划建仓",
+      "strategy_ref": "momentum_breakout"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "buy",
+      "code": "300059",
+      "name": "东方财富",
+      "type": "stock",
+      "price": 20.85,
+      "shares": 2000,
+      "amount": 41700.0,
+      "commission": 12.51,
+      "stamp_tax": 0,
+      "transfer_fee": 0.83,
+      "total_cost": 13.34,
+      "total_amount": 41713.34,
+      "signal": "板块轮动：券商+互联网属性，节后市场放量上涨+2.41%，按盘前计划建仓",
+      "strategy_ref": "momentum_breakout"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1006853.46,
+      "daily_pnl": -4815.07,
+      "daily_pnl_pct": -0.48
+    },
+    "lab": {
+      "total_value": 318053.82,
+      "daily_pnl": 3269.92,
+      "daily_pnl_pct": 1.04
+    }
+  }
+}

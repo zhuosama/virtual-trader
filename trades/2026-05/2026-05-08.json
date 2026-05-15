@@ -1,0 +1,38 @@
+{
+  "date": "2026-05-08",
+  "is_trading_day": true,
+  "market_summary": {
+    "hs300_index": {
+      "close": 4871.91,
+      "change_pct": 0
+    }
+  },
+  "trades": [
+    {
+      "account": "main",
+      "action": "sell",
+      "code": "601088",
+      "name": "中国神华",
+      "price": 45.18,
+      "shares": 2000,
+      "amount": 90360.0,
+      "total_cost": 119.28,
+      "net_amount": 90240.72,
+      "signal": "时间止损: 持有22天无涨幅",
+      "date": "2026-05-08",
+      "realized_pnl_pct": -0.78
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1001108.02,
+      "daily_pnl": 0.0,
+      "daily_pnl_pct": 0.0
+    },
+    "lab": {
+      "total_value": 319989.82,
+      "daily_pnl": 0.0,
+      "daily_pnl_pct": 0.0
+    }
+  }
+}

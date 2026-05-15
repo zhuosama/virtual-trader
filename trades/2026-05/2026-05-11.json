@@ -1,0 +1,23 @@
+{
+  "date": "2026-05-11",
+  "is_trading_day": true,
+  "market_summary": {
+    "hs300_index": {
+      "close": 4951.84,
+      "change_pct": 1.64
+    }
+  },
+  "trades": [],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1003206.02,
+      "daily_pnl": 2098.0,
+      "daily_pnl_pct": 0.21
+    },
+    "lab": {
+      "total_value": 325135.82,
+      "daily_pnl": 5146.0,
+      "daily_pnl_pct": 1.61
+    }
+  }
+}
