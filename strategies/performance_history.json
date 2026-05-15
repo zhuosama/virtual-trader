@@ -110,5 +110,61 @@
     "hs300_pct": -0.06,
     "main_beat": true,
     "lab_beat": true
+  },
+  {
+    "date": "2026-05-06",
+    "main_pct": -0.48,
+    "lab_pct": 1.04,
+    "hs300_pct": 1.45,
+    "main_beat": false,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-05-07",
+    "main_pct": -0.47,
+    "lab_pct": 1.48,
+    "hs300_pct": 0.48,
+    "main_beat": false,
+    "lab_beat": true
+  },
+  {
+    "date": "2026-05-15",
+    "main_pct": -0.42,
+    "lab_pct": -2.03,
+    "hs300_pct": -1.12,
+    "main_beat": true,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-05-15",
+    "main_pct": -0.42,
+    "lab_pct": -2.03,
+    "hs300_pct": -1.12,
+    "main_beat": true,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-05-15",
+    "main_pct": -0.42,
+    "lab_pct": -2.03,
+    "hs300_pct": -1.12,
+    "main_beat": true,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-05-15",
+    "main_pct": -0.42,
+    "lab_pct": -2.03,
+    "hs300_pct": -1.12,
+    "main_beat": true,
+    "lab_beat": false
+  },
+  {
+    "date": "2026-05-15",
+    "main_pct": -0.12,
+    "lab_pct": 5.82,
+    "hs300_pct": -1.12,
+    "main_beat": true,
+    "lab_beat": true
   }
 ]
