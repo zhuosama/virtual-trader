@@ -10,7 +10,7 @@ import os
 
 VTRADER_HOME = os.environ.get("VTRADER_HOME", os.path.expanduser("~/.hermes/virtual-trader"))
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
 
@@ -23,6 +23,7 @@ from execution_planner import ExecutionPlannerAgent
 from risk_controller import RiskControllerAgent
 from review_agent import ReviewAgent
 from strategy_maintainer import StrategyMaintainerAgent
+import audit_layer
 
 # 配置日志
 logging.basicConfig(
@@ -391,10 +392,15 @@ class MultiAgentCoordinator:
             
             # 步骤2: Strategy Maintainer Agent
             logger.info("步骤2: Strategy Maintainer Agent")
-            performance_analysis = self.agents['strategy_maintainer'].analyze_strategy_performance(review_report)
-            adjustments = self.agents['strategy_maintainer'].generate_strategy_adjustments(performance_analysis)
-            apply_result = self.agents['strategy_maintainer'].apply_adjustments(adjustments)
-            update_report = self.agents['strategy_maintainer'].generate_strategy_update_report(performance_analysis, adjustments, apply_result)
+            maintainer = self.agents['strategy_maintainer']
+            performance_analysis = maintainer.analyze_strategy_performance(review_report)
+            adjustments = maintainer.generate_strategy_adjustments(performance_analysis)
+            apply_result = self._audit_strategy_adjustments(
+                maintainer=maintainer,
+                adjustments=adjustments,
+                review_report=review_report,
+            )
+            update_report = maintainer.generate_strategy_update_report(performance_analysis, adjustments, apply_result)
             
             workflow_result['steps'].append({
                 'step': 2,
@@ -417,6 +423,193 @@ class MultiAgentCoordinator:
             workflow_result['final_output'] = f"盘后复盘失败: {e}"
         
         return workflow_result
+
+    def _audit_strategy_adjustments(self, maintainer, adjustments: List[Dict], review_report: Dict) -> Dict:
+        """Audit strategy adjustments before any write to active.json/changelog."""
+        if not adjustments:
+            return {
+                'applied_adjustments': [],
+                'failed_adjustments': [],
+                'changelog_entries': [],
+                'audit_decision': 'NO_CHANGES',
+                'audit_reason': 'no strategy adjustments proposed',
+            }
+
+        proposal = maintainer.propose(adjustments)
+        oos_backtest = self._build_oos_backtest_evidence(maintainer, proposal, review_report)
+        audit_log_path = os.path.join(self.data_dir, "strategies", "audit_log.json")
+        audit_result = audit_layer.review(
+            proposal=proposal,
+            changelog=getattr(maintainer, "changelog", []),
+            oos_backtest=oos_backtest,
+            risk_rules=self._read_text(os.path.join(self.data_dir, "references", "risk-rules.md")),
+            current_portfolio=review_report.get("accounts", {}),
+            recent_trades=self._load_recent_trades(),
+            current_account=review_report.get("accounts", {}).get(proposal.get("account", ""), {}),
+            llm_client=getattr(maintainer, "llm", None),
+            audit_log_path=audit_log_path,
+        )
+
+        decision = audit_result.get("decision")
+        apply_result = {
+            'applied_adjustments': [],
+            'failed_adjustments': [],
+            'changelog_entries': [],
+            'audit_decision': decision,
+            'audit_reason': audit_result.get("reason", ""),
+            'proposal_id': proposal.get("proposal_id"),
+            'audit_result': audit_result,
+        }
+
+        if decision == "AUTO_MERGE":
+            maintainer.commit_approved(proposal["proposal_id"])
+            apply_result['applied_adjustments'] = adjustments
+        else:
+            apply_result['failed_adjustments'] = adjustments
+
+        return apply_result
+
+    def _build_oos_backtest_evidence(self, maintainer, proposal: Dict, review_report: Dict) -> Dict:
+        """Build current-vs-proposed OOS evidence for audit_layer.review()."""
+        try:
+            from backtest.market_data import (
+                AkshareProvider,
+                BaoStockProvider,
+                CachedPriceProvider,
+                FallbackMarketDataProvider,
+                TushareProvider,
+                YFinanceProvider,
+            )
+            from backtest.oos_window import compute_oos_window
+            from backtest.strategy_simulator import build_oos_evidence, code_to_ticker
+        except Exception as exc:
+            return {"status": "INFRA_ERROR", "reason": "OOS_IMPORT_FAILED", "error": str(exc)}
+
+        account = proposal.get("account", "main")
+        calendar = getattr(self, "trading_calendar", None) or self._derive_trading_calendar()
+        window = compute_oos_window(
+            getattr(maintainer, "changelog", []),
+            account,
+            datetime.now().strftime("%Y-%m-%d"),
+            calendar,
+        )
+        if window.get("status") != "OK":
+            return window
+
+        watchlist = getattr(self, "watchlist", None) or self._read_json(
+            os.path.join(self.data_dir, "market-data", "watchlist.json"),
+            {"stocks": []},
+        )
+        account_tag = "main" if account == "main" else "lab"
+        tickers = [
+            code_to_ticker(row["code"])
+            for row in watchlist.get("stocks", [])
+            if row.get("code") and row.get("tag") in {account, account_tag}
+        ]
+        tickers.append("000300.SS")
+        provider = getattr(self, "market_data_provider", None)
+        if provider is None:
+            provider = FallbackMarketDataProvider([
+                CachedPriceProvider(os.path.join(self.data_dir, "market-data", "cache")),
+                TushareProvider(),
+                AkshareProvider(),
+                BaoStockProvider(),
+                YFinanceProvider(),
+            ])
+
+        price_result = provider.get_close_prices(sorted(set(tickers)), window["start"], window["end"])
+        if price_result.status != "OK":
+            return {
+                "status": "INFRA_ERROR",
+                "reason": price_result.reason or "NO_PRICE_DATA",
+                "sources_tried": price_result.sources_tried,
+                "missing_symbols": price_result.missing_symbols,
+            }
+
+        strategy_key = f"{account}_strategy"
+        current_strategy = getattr(maintainer, "strategies", {}).get(strategy_key)
+        if not current_strategy:
+            return {
+                "status": "INFRA_ERROR",
+                "reason": "STRATEGY_NOT_FOUND",
+                "strategy_key": strategy_key,
+            }
+
+        return build_oos_evidence(
+            current_strategy,
+            proposal,
+            watchlist,
+            price_result.prices,
+            window,
+            data_meta={
+                "sources_tried": price_result.sources_tried,
+                "sources_used": price_result.sources_used,
+                "missing_symbols": price_result.missing_symbols,
+                "cache_hit_ratio": price_result.cache_hit_ratio,
+                "cache_oldest_age_days": price_result.cache_oldest_age_days,
+                "adjustment": price_result.adjustment,
+            },
+        )
+
+    def _read_text(self, path: str) -> str:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+
+    def _read_json(self, path: str, default):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return default
+
+    def _derive_trading_calendar(self) -> List[str]:
+        trades_dir = os.path.join(self.data_dir, "trades")
+        trade_days = set()
+        if os.path.isdir(trades_dir):
+            for dirpath, _, filenames in os.walk(trades_dir):
+                for filename in filenames:
+                    if filename.endswith(".json"):
+                        trade_days.add(filename[:-5])
+
+        if trade_days:
+            start = datetime.strptime(min(trade_days), "%Y-%m-%d")
+        else:
+            start = datetime.now() - timedelta(days=90)
+
+        end = datetime.now()
+        calendar = []
+        current = start
+        while current <= end:
+            if current.weekday() < 5:
+                calendar.append(current.strftime("%Y-%m-%d"))
+            current += timedelta(days=1)
+        return calendar
+
+    def _load_recent_trades(self) -> List[Dict]:
+        trades_dir = os.path.join(self.data_dir, "trades")
+        recent_trades = []
+        if not os.path.isdir(trades_dir):
+            return recent_trades
+
+        for dirpath, _, filenames in os.walk(trades_dir):
+            for filename in filenames:
+                if not filename.endswith(".json"):
+                    continue
+                path = os.path.join(dirpath, filename)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if isinstance(data, list):
+                    recent_trades.extend(data)
+                elif isinstance(data, dict):
+                    recent_trades.append(data)
+
+        return recent_trades[-200:]
     
     def _generate_post_market_output(self, review_report: Dict, update_report: Dict) -> str:
         """生成盘后输出"""
