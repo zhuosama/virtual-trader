@@ -239,6 +239,18 @@ def _sanitize_daily_series(series):
     ]
 
 
+def _normalize_ratio_percent(value):
+    if value is None:
+        return None
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return None
+    if abs(n) <= 1:
+        n *= 100
+    return round(n, 2)
+
+
 def _load_workflows():
     """Load workflow metadata (no final_output/raw_output/full_log)."""
     wf_dir = VT_DIR / "agents" / "workflows"
@@ -473,10 +485,10 @@ def _build_site_compatible_snapshot():
             "label": acc.get("name") or f"{'主' if aid == 'main' else '实验'}策略账户",
             "returnPct": acc.get("totalReturnPct"),
             "dailyReturnPct": acc.get("dailyReturnPct"),
-            "maxDrawdownPct": acc.get("maxDrawdownPct"),
+            "maxDrawdownPct": _normalize_ratio_percent(acc.get("maxDrawdownPct")),
             "positionPct": acc.get("exposurePct"),
             "tradeCount": acc.get("tradeCount"),
-            "winRatePct": acc.get("winRatePct"),
+            "winRatePct": _normalize_ratio_percent(acc.get("winRatePct")),
             "updatedAt": now,
         }
 

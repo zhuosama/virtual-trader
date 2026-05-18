@@ -92,6 +92,14 @@ class TestExportAdapter(unittest.TestCase):
             "workflow_post_market_20260515_161813.json",
         )
 
+    def test_site_snapshot_normalizes_fractional_risk_metrics_to_percentages(self):
+        snapshot = self.adapter._build_site_compatible_snapshot()
+
+        self.assertEqual(snapshot["accounts"]["main"]["maxDrawdownPct"], 1.0)
+        self.assertEqual(snapshot["accounts"]["main"]["winRatePct"], 50.0)
+        self.assertEqual(snapshot["accounts"]["lab"]["maxDrawdownPct"], 2.0)
+        self.assertEqual(snapshot["accounts"]["lab"]["winRatePct"], 60.0)
+
     def test_public_snapshot_preview_includes_ledger_gate(self):
         preview = self.adapter.build_public_snapshot_preview()
 
