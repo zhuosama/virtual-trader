@@ -129,7 +129,9 @@ Public export is gated by the same strict ledger validator. If
 `scripts/validate_ledger_consistency.py --strict` fails, the console export
 adapter refuses to write `public-export/public-snapshot.json`; the website must
 not publish a snapshot that the local ledger cannot reconcile. The export
-manifest records the ledger validation summary used for that write.
+manifest records the ledger validation summary used for that write, and the
+snapshot itself includes a public `trustState` block with freshness, ledger,
+audit, and recent workflow status for website display.
 
 ### LLM Configuration
 
@@ -278,7 +280,8 @@ python3 scripts/update_perf.py
   and settlement-bearing post-market workflows.
 - Public export is a two-step local process: write a sanitized snapshot into
   `public-export/`, then import it into the local site. Neither step deploys or
-  pushes to GitHub.
+  pushes to GitHub. Site import requires the snapshot `trustState` block so the
+  website can display data freshness and validation status.
 
 ### Environment Variables
 

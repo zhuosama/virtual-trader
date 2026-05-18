@@ -128,6 +128,30 @@ class TestExportAdapter(unittest.TestCase):
             "resultCount": 7,
         })
 
+    def test_written_snapshot_includes_public_trust_state(self):
+        self._write_json("agents/workflows/workflow_post_market_20260515_161813.json", {
+            "workflow_type": "post_market",
+            "status": "degraded",
+            "timestamp": "2026-05-15T16:18:13+00:00",
+        })
+
+        result = self.adapter.write_public_snapshot(dry_run=False)
+
+        self.assertTrue(result["ok"])
+        snapshot = json.loads((self.export_dir / "public-snapshot.json").read_text(encoding="utf-8"))
+        trust = snapshot["trustState"]
+        self.assertEqual(trust["status"], "validated")
+        self.assertEqual(trust["schemaVersion"], "1.0.0")
+        self.assertEqual(trust["staleAfterHours"], 36)
+        self.assertEqual(trust["ledgerValidation"], {
+            "passed": True,
+            "failures": 0,
+            "resultCount": 7,
+        })
+        self.assertEqual(trust["audit"]["latestDecision"], "AUTO_REJECT")
+        self.assertEqual(trust["workflows"]["degradedOrFailedCount"], 1)
+        self.assertNotIn("/Users/", json.dumps(trust))
+
     def test_write_public_snapshot_is_blocked_when_ledger_gate_fails(self):
         with patch.object(
             self.adapter,

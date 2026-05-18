@@ -111,6 +111,9 @@ python3 console/server.py
   新鲜度脱节
 - public export manifest 写入 ledger gate 摘要，保留该次快照对应的
   strict ledger validation 结果
+- `public-snapshot.json` 写入 public `trustState`，包含 schemaVersion、
+  staleAfterHours、ledgerValidation、latest audit decision、recent workflow
+  degraded/failed count；site import 缺少该字段时拒绝导入
 
 ## Endpoints
 
@@ -153,6 +156,7 @@ python3 console/server.py
 - POST 写入口要求页面注入的 per-process nonce；无 nonce 返回 403
 - public export 写入前执行 `validate_ledger_consistency.py --strict`
 - public export manifest 记录该次写入使用的 ledger validation 摘要
+- site import 要求 public snapshot 带 `trustState`，公开网站不读取 live runtime 文件
 - POST 写操作追加本地 append-only admin action log，日志只保留摘要和相对路径
 
 ## Files

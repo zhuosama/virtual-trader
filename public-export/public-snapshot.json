@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-05-18T12:28:33.305534+00:00",
+  "generatedAt": "2026-05-18T19:01:02.150245+00:00",
   "source": {
     "system": "Hermes Virtual Trader",
     "mode": "public-aggregated-snapshot",
-    "updatedAt": "2026-05-18T12:28:33.305534+00:00"
+    "updatedAt": "2026-05-18T19:01:02.150245+00:00"
   },
   "disclaimer": "Paper trading / demo data. Aggregated and anonymized for public portfolio display. Not investment advice.",
   "accounts": {
@@ -15,7 +15,7 @@
       "positionPct": 27.4,
       "tradeCount": 14,
       "winRatePct": 0.62,
-      "updatedAt": "2026-05-18T12:28:33.305534+00:00"
+      "updatedAt": "2026-05-18T19:01:02.150245+00:00"
     },
     "main": {
       "label": "主策略账户",
@@ -25,7 +25,7 @@
       "positionPct": 26.2,
       "tradeCount": 16,
       "winRatePct": 0.25,
-      "updatedAt": "2026-05-18T12:28:33.305534+00:00"
+      "updatedAt": "2026-05-18T19:01:02.150245+00:00"
     }
   },
   "strategies": {
@@ -325,5 +325,26 @@
       "title": "lab 经验 #3",
       "detail": "trailing stop 5.5%比6%更早触发止损，减少单笔最大亏损"
     }
-  ]
+  ],
+  "trustState": {
+    "status": "validated",
+    "schemaVersion": "1.0.0",
+    "generatedAt": "2026-05-18T19:01:02.150245+00:00",
+    "staleAfterHours": 36,
+    "ledgerValidation": {
+      "passed": true,
+      "failures": 0,
+      "resultCount": 7
+    },
+    "audit": {
+      "latestDecision": "AUTO_REJECT",
+      "latestReviewedAt": "2026-05-16T20:50:15.095727+00:00"
+    },
+    "workflows": {
+      "latestStatus": "success",
+      "latestRun": "2026-05-18T09:30:53.625604",
+      "latestArtifact": "workflow_post_market_20260518_093055.json",
+      "degradedOrFailedCount": 5
+    }
+  }
 }

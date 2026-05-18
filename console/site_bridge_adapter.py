@@ -39,7 +39,7 @@ CHART_FILES = ["cumulative_returns.png", "daily_pnl.png", "drawdown.png", "posit
 REQUIRED_TOP_FIELDS = [
     "generatedAt", "source", "disclaimer",
     "accounts", "strategies", "performance",
-    "workflows", "agents", "charts", "lessons",
+    "workflows", "agents", "trustState", "charts", "lessons",
 ]
 
 # Required account fields

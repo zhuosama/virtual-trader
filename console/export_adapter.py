@@ -648,6 +648,39 @@ EXPORT_DIR = VT_DIR / "public-export"
 SNAPSHOT_FILE = "public-snapshot.json"
 MANIFEST_FILE = "manifest.json"
 SCHEMA_VERSION = "1.0.0"
+PUBLIC_SNAPSHOT_STALE_HOURS = 36
+
+
+def _workflow_trust_summary():
+    workflows = _load_workflows()
+    latest = workflows[0] if workflows else {}
+    degraded_statuses = {"degraded", "failed", "error"}
+    degraded_count = sum(
+        1 for wf in workflows
+        if str(wf.get("status") or "").lower() in degraded_statuses
+    )
+    return {
+        "latestStatus": latest.get("status"),
+        "latestRun": latest.get("createdAt"),
+        "latestArtifact": latest.get("filename"),
+        "degradedOrFailedCount": degraded_count,
+    }
+
+
+def _build_public_trust_state(snapshot, ledger):
+    audit = snapshot.get("auditLayer") or {}
+    return {
+        "status": "validated" if ledger.get("passed") else "blocked",
+        "schemaVersion": SCHEMA_VERSION,
+        "generatedAt": snapshot.get("generatedAt"),
+        "staleAfterHours": PUBLIC_SNAPSHOT_STALE_HOURS,
+        "ledgerValidation": ledger,
+        "audit": {
+            "latestDecision": audit.get("latestDecision"),
+            "latestReviewedAt": audit.get("latestReviewedAt"),
+        },
+        "workflows": _workflow_trust_summary(),
+    }
 
 
 def write_public_snapshot(dry_run=False):
@@ -669,11 +702,12 @@ def write_public_snapshot(dry_run=False):
     """
     # Step 1: Build snapshot
     snapshot = _build_site_compatible_snapshot()
+    ledger = _ledger_validation_status()
+    snapshot["trustState"] = _build_public_trust_state(snapshot, ledger)
 
     # Step 2: Scan snapshot for sensitive fields
     findings = scan_sensitive_fields(snapshot)
     passed = all(f["severity"] != "high" for f in findings)
-    ledger = _ledger_validation_status()
 
     result = {
         "ok": passed and ledger.get("passed", False),

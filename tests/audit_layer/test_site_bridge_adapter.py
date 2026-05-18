@@ -35,6 +35,15 @@ def _compatible_snapshot():
         "performance": [{"date": "2026-05-15", "returnPct": 1.0}],
         "workflows": [],
         "agents": [],
+        "trustState": {
+            "status": "validated",
+            "schemaVersion": "1.0.0",
+            "generatedAt": "2026-05-15T15:30:00Z",
+            "staleAfterHours": 36,
+            "ledgerValidation": {"passed": True, "failures": 0, "resultCount": 7},
+            "audit": {"latestDecision": "AUTO_MERGE", "latestReviewedAt": "2026-05-15T14:00:00Z"},
+            "workflows": {"latestStatus": "success", "degradedOrFailedCount": 0},
+        },
         "charts": {},
         "lessons": [],
     }
@@ -93,6 +102,16 @@ class TestSiteBridgeAdapter(unittest.TestCase):
 
         self.assertFalse(result["compatible"])
         self.assertEqual(result["scan"]["highSeverityCount"], 0)
+
+    def test_compatibility_requires_public_trust_state(self):
+        snapshot = _compatible_snapshot()
+        snapshot.pop("trustState")
+        self.snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+
+        result = self.adapter.validate_site_import_compatibility()
+
+        self.assertFalse(result["compatible"])
+        self.assertIn("trustState", result["fieldCheck"]["missing"])
 
     def test_failed_post_scan_removes_new_site_snapshot_when_no_previous_file(self):
         with patch.object(self.adapter, "post_import_scan", return_value={
