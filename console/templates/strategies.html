@@ -112,7 +112,7 @@
     if (s.rules && Object.keys(s.rules).length > 0) {
       const items = Object.entries(s.rules).map(function(entry) {
         const val = typeof entry[1] === 'object' ? JSON.stringify(entry[1]) : String(entry[1]);
-        return '<li><span class="rule-key">' + entry[0] + '</span> ' + escapeHtml(val) + '</li>';
+        return '<li><span class="rule-key">' + escapeHtml(entry[0]) + '</span> ' + escapeHtml(val) + '</li>';
       }).join('');
       rulesHtml = renderSection('Rules', '<ul class="rules-list">' + items + '</ul>');
     }
@@ -149,10 +149,10 @@
     }
 
     return '<div class="strategy-card">' +
-      '<div class="card-head"><span class="label">' + code + '</span><span class="version">' + (s.version || 'n/a') + '</span></div>' +
+      '<div class="card-head"><span class="label">' + escapeHtml(code) + '</span><span class="version">' + escapeHtml(s.version || 'n/a') + '</span></div>' +
       '<div class="card-body">' +
       '<h2>' + escapeHtml(s.name || 'n/a') + '</h2>' +
-      '<span class="status-badge active">' + (s.status || 'n/a') + '</span>' +
+      '<span class="status-badge active">' + escapeHtml(s.status || 'n/a') + '</span>' +
       '<p class="description">' + escapeHtml(s.description || '') + '</p>' +
       rulesHtml + paramsHtml + historyHtml + lessonsHtml +
       '</div></div>';

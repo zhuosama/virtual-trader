@@ -181,6 +181,26 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertNotIn("final_output", workflows[0])
         self.assertNotIn("/Users/zhuosama", str(workflows[0]))
 
+    def test_workflow_warning_redacts_non_user_absolute_paths(self):
+        self._write_json("agents/workflows/workflow_post_market_20260518_153000.json", {
+            "workflow_type": "post_market",
+            "status": "degraded",
+            "warnings": [
+                "temp path /var/folders/abc/private.log",
+                "tmp path /tmp/hermes-secret.log",
+                "linux path /home/hermes/.env",
+                "volume path /Volumes/Backup/Hermes/private.json",
+            ],
+        })
+
+        workflows = self.server.get_workflows()
+
+        self.assertNotIn("/var/folders", str(workflows[0]))
+        self.assertNotIn("/tmp/hermes", str(workflows[0]))
+        self.assertNotIn("/home/hermes", str(workflows[0]))
+        self.assertNotIn("/Volumes/Backup", str(workflows[0]))
+        self.assertIn("<LOCAL_PATH>", str(workflows[0]))
+
     def test_get_accounts_adds_position_pnl_pct_from_unrealized_field(self):
         self._write_json("accounts/main.json", {
             "id": "main",
@@ -259,6 +279,16 @@ class TestConsoleHealth(unittest.TestCase):
 
         self.assertEqual([s["id"] for s in strategies], ["main-v1.0.5", "lab-v1.0.6"])
         self.assertEqual([s["version"] for s in summary["strategies"]], ["v1.0.5", "v1.0.6"])
+
+    def test_get_strategies_uses_legacy_keys_when_canonical_keys_absent(self):
+        self._write_json("strategies/active.json", {
+            "main": {"name": "Main Legacy", "version": "0.9.0"},
+            "lab": {"name": "Lab Legacy", "version": "0.9.1"},
+        })
+
+        strategies = self.server.get_strategies()
+
+        self.assertEqual([s["id"] for s in strategies], ["main-v0.9.0", "lab-v0.9.1"])
 
     def test_backtests_payload_uses_active_strategy_versions(self):
         self._write_json("strategies/active.json", {
@@ -406,6 +436,18 @@ class TestConsoleHealth(unittest.TestCase):
             self.assertIn("ops-strip", html, template_name)
             self.assertIn("renderOpsStrip", html, template_name)
 
+    def test_management_templates_escape_local_data_insertions(self):
+        strategies_html = (self.server.TEMPLATES_DIR / "strategies.html").read_text(encoding="utf-8")
+        data_html = (self.server.TEMPLATES_DIR / "data.html").read_text(encoding="utf-8")
+
+        self.assertIn("escapeHtml(entry[0])", strategies_html)
+        self.assertIn("escapeHtml(s.version || 'n/a')", strategies_html)
+        self.assertIn("escapeHtml(s.status || 'n/a')", strategies_html)
+        self.assertIn("escapeHtml(p.code || p.stock_code || '—')", data_html)
+        self.assertIn("escapeHtml(p.name || '—')", data_html)
+        self.assertIn("escapeHtml(a.id || '')", data_html)
+        self.assertIn("escapeHtml(a.name || '')", data_html)
+
     def test_management_routes_inject_business_health_payload(self):
         expected_health = {"status": "degraded", "issues": ["test issue"]}
 
@@ -551,6 +593,51 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertNotIn("dailySeries", entry["result"])
         self.assertNotIn("tradeSummary", entry["result"])
 
+    def test_backtest_post_rejects_unknown_strategy_when_no_active_strategies(self):
+        body = {"strategyId": "main-v1.0.5"}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/backtests"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        with patch.object(self.server, "get_backtest_strategy_options", return_value=[]), \
+                patch.object(self.server.backtest_adapter, "run_backtest_task") as run_backtest:
+            handler.do_POST()
+
+        self.assertEqual(captured["status"], 400)
+        self.assertEqual(captured["data"]["error"], "unknown strategyId")
+        run_backtest.assert_not_called()
+        self.assertFalse((Path(self.tmpdir) / "logs" / "admin_actions.jsonl").exists())
+
+    def test_backtest_post_logs_adapter_exception(self):
+        body = {"strategyId": "main-v1.0.5"}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/backtests"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        with patch.object(self.server, "get_backtest_strategy_options", return_value=[{"id": "main-v1.0.5"}]), \
+                patch.object(self.server.backtest_adapter, "run_backtest_task", side_effect=RuntimeError("/tmp/private failure")):
+            handler.do_POST()
+
+        log_path = Path(self.tmpdir) / "logs" / "admin_actions.jsonl"
+        entry = json.loads(log_path.read_text(encoding="utf-8").strip())
+        self.assertEqual(captured["status"], 500)
+        self.assertFalse(entry["ok"])
+        self.assertEqual(entry["operation"], "backtest.run")
+        self.assertEqual(entry["changedFiles"], [])
+        self.assertNotIn("/tmp/private", str(entry))
+
     def test_export_post_admin_action_log_redacts_sensitive_fields_and_paths(self):
         body = {"dryRun": False, "api_key": "live-secret"}
         handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
@@ -582,6 +669,28 @@ class TestConsoleHealth(unittest.TestCase):
             "public-export/manifest.json",
         ])
         self.assertNotIn("/Users/zhuosama", str(entry))
+
+    def test_public_snapshot_post_logs_adapter_exception(self):
+        body = {"dryRun": False}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/export/public-snapshot"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        with patch.object(self.server.export_adapter, "write_public_snapshot", side_effect=RuntimeError("/var/folders/private failure")):
+            handler.do_POST()
+
+        log_path = Path(self.tmpdir) / "logs" / "admin_actions.jsonl"
+        entry = json.loads(log_path.read_text(encoding="utf-8").strip())
+        self.assertEqual(captured["status"], 500)
+        self.assertFalse(entry["ok"])
+        self.assertEqual(entry["operation"], "export.public_snapshot")
+        self.assertNotIn("/var/folders", str(entry))
 
     def test_failed_backtest_admin_log_does_not_claim_changed_file(self):
         result = {"status": "failed", "runId": "bt-fail", "error": "disk full"}
@@ -617,6 +726,52 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertEqual(entry["operation"], "export.import_to_site")
         self.assertEqual(entry["changedFiles"], ["<LOCAL_PATH>"])
         self.assertNotIn("/Users/zhuosama", str(entry))
+
+    def test_import_to_site_post_logs_adapter_exception(self):
+        body = {"dryRun": False}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/export/import-to-site"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        with patch.object(self.server.site_bridge_adapter, "run_site_import", side_effect=RuntimeError("/home/hermes/private failure")):
+            handler.do_POST()
+
+        log_path = Path(self.tmpdir) / "logs" / "admin_actions.jsonl"
+        entry = json.loads(log_path.read_text(encoding="utf-8").strip())
+        self.assertEqual(captured["status"], 500)
+        self.assertFalse(entry["ok"])
+        self.assertEqual(entry["operation"], "export.import_to_site")
+        self.assertNotIn("/home/hermes", str(entry))
+
+    def test_import_to_site_dry_run_admin_log_has_no_changed_files(self):
+        result = {
+            "ok": True,
+            "dryRun": True,
+            "written": False,
+            "changedFiles": ["/Users/zhuosama/obsidian-wiki/site/src/data/virtual-trader/public-snapshot.json"],
+        }
+
+        changed = self.server.changed_files_for_admin_log("export.import_to_site", result)
+
+        self.assertEqual(changed, [])
+
+    def test_unknown_post_with_valid_nonce_returns_404_without_admin_log(self):
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/unknown"
+        handler.headers = {"X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE}
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        handler.do_POST()
+
+        self.assertEqual(captured["status"], 404)
+        self.assertFalse((Path(self.tmpdir) / "logs" / "admin_actions.jsonl").exists())
 
     def test_admin_log_sensitive_detection_does_not_mask_benign_key_names(self):
         payload = {

@@ -94,7 +94,11 @@ def redact_local_paths(text) -> str:
     """Return a compact diagnostic string without local filesystem paths."""
     value = str(text)
     value = value.replace(str(VTRADER_HOME), "<VTRADER_HOME>")
-    value = re.sub(r"/Users/[^\s,;:)]+", "<LOCAL_PATH>", value)
+    value = re.sub(
+        r"(?<![\w:])/(?:Users|home|private|var|tmp|Volumes)(?:/[^\s,;:)]+)*",
+        "<LOCAL_PATH>",
+        value,
+    )
     return value
 
 
@@ -145,9 +149,17 @@ def changed_files_for_admin_log(operation, result):
             )
             if path
         ]
-    if operation == "export.import_to_site":
+    if operation == "export.import_to_site" and result.get("written"):
         return [public_path(path) for path in result.get("changedFiles", [])]
     return []
+
+
+def adapter_error_result(exc):
+    return {
+        "ok": False,
+        "status": "failed",
+        "error": f"{type(exc).__name__}: {redact_local_paths(exc)}",
+    }
 
 
 def append_admin_action_log(operation, path, request_body, result, status_code):
@@ -729,11 +741,17 @@ class ConsoleHandler(BaseHTTPRequestHandler):
                 self._json({"error": "strategyId is required"}, 400)
                 return
             valid_strategy_ids = {s.get("id") for s in get_backtest_strategy_options()}
-            if valid_strategy_ids and body.get("strategyId") not in valid_strategy_ids:
+            if not valid_strategy_ids or body.get("strategyId") not in valid_strategy_ids:
                 self._json({"error": "unknown strategyId"}, 400)
                 return
             # Run backtest (synchronous for Phase 3A)
-            result = backtest_adapter.run_backtest_task(body)
+            try:
+                result = backtest_adapter.run_backtest_task(body)
+            except Exception as exc:
+                result = adapter_error_result(exc)
+                append_admin_action_log("backtest.run", path, body, result, 500)
+                self._json(result, 500)
+                return
             status = 201 if result["status"] == "completed" else 500
             append_admin_action_log("backtest.run", path, body, result, status)
             self._json(result, status)
@@ -743,7 +761,13 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             if body is None:
                 return
             dry_run = body.get("dryRun", True)
-            result = export_adapter.write_public_snapshot(dry_run=dry_run)
+            try:
+                result = export_adapter.write_public_snapshot(dry_run=dry_run)
+            except Exception as exc:
+                result = adapter_error_result(exc)
+                append_admin_action_log("export.public_snapshot", path, body, result, 500)
+                self._json(result, 500)
+                return
             status = 200 if result.get("ok") else 422
             append_admin_action_log("export.public_snapshot", path, body, result, status)
             self._json(result, status)
@@ -753,7 +777,13 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             if body is None:
                 return
             dry_run = body.get("dryRun", True)
-            result = site_bridge_adapter.run_site_import(dry_run=dry_run)
+            try:
+                result = site_bridge_adapter.run_site_import(dry_run=dry_run)
+            except Exception as exc:
+                result = adapter_error_result(exc)
+                append_admin_action_log("export.import_to_site", path, body, result, 500)
+                self._json(result, 500)
+                return
             status = 200 if result.get("ok") else 422
             append_admin_action_log("export.import_to_site", path, body, result, status)
             self._json(result, status)

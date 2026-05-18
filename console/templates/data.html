@@ -115,8 +115,8 @@
           const pPnlClass = (posPnl || 0) >= 0 ? 'positive' : 'negative';
           const pSign = (posPnl || 0) >= 0 ? '+' : '';
           return '<tr>' +
-            '<td class="code">' + (p.code || p.stock_code || '—') + '</td>' +
-            '<td>' + (p.name || '—') + '</td>' +
+            '<td class="code">' + escapeHtml(p.code || p.stock_code || '—') + '</td>' +
+            '<td>' + escapeHtml(p.name || '—') + '</td>' +
             '<td class="num">' + (p.shares || p.quantity || '—') + '</td>' +
             '<td class="num">' + (p.avg_cost || p.cost_price ? Number(p.avg_cost || p.cost_price).toFixed(2) : '—') + '</td>' +
             '<td class="num">' + (p.current_price ? Number(p.current_price).toFixed(2) : '—') + '</td>' +
@@ -132,7 +132,7 @@
       }
 
       return '<div class="account-card">' +
-        '<div class="card-head"><span class="label">' + (a.id || '') + '</span><span class="id">' + (a.name || '') + '</span></div>' +
+        '<div class="card-head"><span class="label">' + escapeHtml(a.id || '') + '</span><span class="id">' + escapeHtml(a.name || '') + '</span></div>' +
         '<div class="card-body">' +
         '<div class="metric-big"><div class="label">Total Return</div><div class="value ' + pnlClass + '">' + sign + Number(a.total_pnl_pct || 0).toFixed(2) + '%</div></div>' +
         '<div class="metric-grid">' +
