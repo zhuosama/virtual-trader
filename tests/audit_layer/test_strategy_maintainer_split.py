@@ -89,6 +89,47 @@ class TestStrategyMaintainerSplit(unittest.TestCase):
         active = json.loads(Path(self.tmpdir, "strategies", "active.json").read_text())
         self.assertEqual(active["main_strategy"]["parameters"]["max_single_position"], 0.08)
 
+    def test_generate_strategy_adjustments_skips_noop_and_duplicates(self):
+        m = self._make_maintainer()
+        m.strategies["main_strategy"]["parameters"]["max_single_position"] = 0.08
+
+        analysis = m.analyze_strategy_performance({
+            "mistakes": [
+                {"type": "position_limit_exceeded", "description": "main超限"},
+                {"type": "position_limit_exceeded", "description": "lab超限"},
+            ],
+            "lessons": {},
+        })
+        adjustments = m.generate_strategy_adjustments(analysis)
+
+        self.assertEqual(adjustments, [])
+
+    def test_generate_strategy_adjustments_dedupes_same_parameter_change(self):
+        m = self._make_maintainer()
+
+        adjustments = m.generate_strategy_adjustments({
+            "confidence": "medium",
+            "parameter_suggestions": [
+                {
+                    "strategy": "main",
+                    "parameter": "max_single_position",
+                    "current_value": 0.10,
+                    "suggested_value": 0.08,
+                    "reason": "防止仓位超限",
+                },
+                {
+                    "strategy": "main",
+                    "parameter": "max_single_position",
+                    "current_value": 0.10,
+                    "suggested_value": 0.08,
+                    "reason": "防止仓位超限",
+                },
+            ],
+        })
+
+        self.assertEqual(len(adjustments), 1)
+        self.assertEqual(adjustments[0]["new_value"], 0.08)
+
 
 if __name__ == "__main__":
     unittest.main()

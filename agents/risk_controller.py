@@ -7,6 +7,7 @@ Risk Controller Agent
 
 import json
 import os
+import math
 
 VTRADER_HOME = os.environ.get("VTRADER_HOME", os.path.expanduser("~/.hermes/virtual-trader"))
 from datetime import datetime
@@ -19,6 +20,12 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def _round_up_to_lot(shares: float, lot_size: int = 100) -> int:
+    if shares <= 0:
+        return 0
+    return int(math.ceil(shares / lot_size) * lot_size)
 
 class RiskControllerAgent:
     """风控专家Agent"""
@@ -396,6 +403,7 @@ class RiskControllerAgent:
         Checks:
         1. Single position exceeds max_single_position (main=10%, lab=20%)
         2. Unrealized loss exceeds stop-loss threshold (main=7%, lab=5.5%)
+        3. Position held beyond time_stop days with no gain
         
         Returns:
             List of sell actions (never buy). Empty list if all compliant.
@@ -423,6 +431,13 @@ class RiskControllerAgent:
                 
                 # Check 1: position concentration
                 if pos_pct > max_single:
+                    current_price = pos.get('current_price') or (mv / pos.get('shares', 1) if pos.get('shares') else 0)
+                    current_shares = int(pos.get('shares', 0))
+                    excess_value = max(mv - total_value * max_single, 0)
+                    sell_shares = _round_up_to_lot(excess_value / current_price) if current_price > 0 else current_shares
+                    sell_shares = min(sell_shares, current_shares)
+                    projected_market_value = max(mv - sell_shares * current_price, 0)
+                    projected_pct = projected_market_value / total_value if total_value > 0 else 0
                     actions.append({
                         'account': account_type,
                         'action': 'sell',
@@ -432,10 +447,24 @@ class RiskControllerAgent:
                         'current_pct': round(pos_pct, 4),
                         'target_pct': max_single,
                         'type': 'risk_reduction',
+                        'auto_execute': True,
+                        'current_shares': current_shares,
+                        'sell_shares': sell_shares,
+                        'lot_size': 100,
+                        'price': current_price,
+                        'excess_market_value': round(excess_value, 2),
+                        'projected_pct': round(projected_pct, 4),
                     })
                 
                 # Check 2: stop-loss
+                has_sell_action = any(
+                    a.get('account') == account_type and a.get('code') == code and a.get('action') == 'sell'
+                    for a in actions
+                )
+
                 if pnl_pct < 0 and abs(pnl_pct) / 100 >= stop_rules['default']:
+                    current_price = pos.get('current_price') or (mv / pos.get('shares', 1) if pos.get('shares') else 0)
+                    current_shares = int(pos.get('shares', 0))
                     actions.append({
                         'account': account_type,
                         'action': 'sell',
@@ -445,7 +474,41 @@ class RiskControllerAgent:
                         'unrealized_pnl_pct': pnl_pct,
                         'stop_loss_pct': stop_rules['default'],
                         'type': 'stop_loss',
+                        'auto_execute': True,
+                        'current_shares': current_shares,
+                        'sell_shares': current_shares,
+                        'lot_size': 100,
+                        'price': current_price,
                     })
+                    has_sell_action = True
+
+                # Check 3: time-stop for stale positions with no gain
+                entry_date = pos.get('entry_date') or pos.get('buy_date')
+                if entry_date and pnl_pct <= 0:
+                    try:
+                        holding_days = (datetime.now() - datetime.strptime(entry_date, "%Y-%m-%d")).days
+                    except ValueError:
+                        logger.warning("time-stop: cannot parse entry_date '%s' for %s, skipping", entry_date, code)
+                        holding_days = None
+                    if not has_sell_action and holding_days is not None and holding_days > stop_rules['time_stop']:
+                        current_price = pos.get('current_price') or (mv / pos.get('shares', 1) if pos.get('shares') else 0)
+                        current_shares = int(pos.get('shares', 0))
+                        actions.append({
+                            'account': account_type,
+                            'action': 'sell',
+                            'code': code,
+                            'name': name,
+                            'reason': f'持有{holding_days}天无收益，超过时间止损{stop_rules["time_stop"]}天',
+                            'holding_days': holding_days,
+                            'time_stop_days': stop_rules['time_stop'],
+                            'unrealized_pnl_pct': pnl_pct,
+                            'type': 'time_stop',
+                            'auto_execute': True,
+                            'current_shares': current_shares,
+                            'sell_shares': current_shares,
+                            'lot_size': 100,
+                            'price': current_price,
+                        })
         
         return actions
 

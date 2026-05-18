@@ -6,7 +6,10 @@ are mutually consistent. Never writes to the repo.
 """
 import os
 import sys
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -69,6 +72,44 @@ class TestINV6_ObservedLedgerCoverage(unittest.TestCase):
 
     def test_full_coverage(self):
         v = LedgerValidator(root=ROOT)
+        v.check_inv6()
+        result = next(r for r in v.results if r["inv"] == "INV-6")
+        self.assertEqual(result["status"], "PASS", result["msg"])
+
+    def test_strategy_update_only_workflows_are_not_ledger_dates(self):
+        tmpdir = tempfile.mkdtemp()
+        Path(tmpdir, "agents", "workflows").mkdir(parents=True)
+        Path(tmpdir, "strategies").mkdir()
+        Path(tmpdir, "strategies", "performance_history.json").write_text(
+            json.dumps([{"date": "2026-05-15"}])
+        )
+        Path(
+            tmpdir,
+            "agents",
+            "workflows",
+            "workflow_strategy_update_only_20260516_225122.json",
+        ).write_text("{}")
+
+        v = LedgerValidator(root=tmpdir)
+        v.check_inv6()
+        result = next(r for r in v.results if r["inv"] == "INV-6")
+        self.assertEqual(result["status"], "PASS", result["msg"])
+
+    def test_premarket_workflow_alone_is_not_a_ledger_date(self):
+        tmpdir = tempfile.mkdtemp()
+        Path(tmpdir, "agents", "workflows").mkdir(parents=True)
+        Path(tmpdir, "strategies").mkdir()
+        Path(tmpdir, "strategies", "performance_history.json").write_text(
+            json.dumps([{"date": "2026-05-15"}])
+        )
+        Path(
+            tmpdir,
+            "agents",
+            "workflows",
+            "workflow_pre_market_20260518_021028.json",
+        ).write_text("{}")
+
+        v = LedgerValidator(root=tmpdir)
         v.check_inv6()
         result = next(r for r in v.results if r["inv"] == "INV-6")
         self.assertEqual(result["status"], "PASS", result["msg"])

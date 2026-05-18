@@ -10,6 +10,7 @@ import os
 import subprocess
 import logging
 from typing import Dict, List, Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +74,41 @@ class LLMClient:
         try:
             with open(config_path, 'r') as f:
                 config = json.load(f)
-            return config.get("llm", {}).get("api_key", "")
+            key = config.get("llm", {}).get("api_key", "")
+            if key:
+                return key
+        except Exception:
+            pass
+
+        # 3. Hermes CLI 统一配置（避免在 repo-local config.json 写入密钥）
+        return self._load_hermes_api_key() or self._load_hermes_env_api_key()
+
+    def _load_hermes_api_key(self) -> str:
+        """Best-effort read of ~/.hermes/config.yaml without adding a YAML dependency."""
+        path = Path.home() / ".hermes" / "config.yaml"
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if stripped.startswith("api_key:"):
+                    return stripped.split(":", 1)[1].strip().strip('"').strip("'")
         except Exception:
             return ""
+        return ""
+
+    def _load_hermes_env_api_key(self) -> str:
+        """Best-effort read of ~/.hermes/.env for DEEPSEEK_API_KEY."""
+        path = Path.home() / ".hermes" / ".env"
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or "=" not in stripped:
+                    continue
+                key, value = stripped.split("=", 1)
+                if key.strip() == "DEEPSEEK_API_KEY":
+                    return value.strip().strip('"').strip("'")
+        except Exception:
+            return ""
+        return ""
 
     def call(self, agent_name: str, system_prompt: str, user_message: str,
              temperature: float = 0.3, max_tokens: int = 2000) -> str:
@@ -114,11 +147,26 @@ class LLMClient:
                 capture_output=True, timeout=90
             )
 
-            response = json.loads(result.stdout.decode("utf-8"))
+            stdout = result.stdout.decode("utf-8", errors="replace").strip()
+            if result.returncode != 0 or not stdout:
+                stderr = result.stderr.decode("utf-8", errors="replace").strip()
+                logger.warning(
+                    f"LLM HTTP 调用无有效响应 [{agent_name}/{model_key}]: "
+                    f"returncode={result.returncode}, stderr={stderr[:200]}"
+                )
+                return self._call_hermes_cli(agent_name, system_prompt, user_message)
+
+            try:
+                response = json.loads(stdout)
+            except json.JSONDecodeError as e:
+                logger.warning(
+                    f"LLM HTTP 响应不是 JSON [{agent_name}/{model_key}]: {e}; fallback hermes cli"
+                )
+                return self._call_hermes_cli(agent_name, system_prompt, user_message)
 
             if "error" in response:
                 logger.error(f"LLM 调用失败 [{agent_name}/{model_key}]: {response['error']}")
-                return f"[LLM Error: {response['error'].get('message', 'unknown')}]"
+                return self._call_hermes_cli(agent_name, system_prompt, user_message)
 
             content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
             usage = response.get("usage", {})
@@ -134,7 +182,43 @@ class LLMClient:
             return "[LLM Error: timeout]"
         except Exception as e:
             logger.error(f"LLM 调用异常 [{agent_name}/{model_key}]: {e}")
-            return f"[LLM Error: {e}]"
+            return self._call_hermes_cli(agent_name, system_prompt, user_message)
+
+    def _call_hermes_cli(self, agent_name: str, system_prompt: str, user_message: str) -> str:
+        """Fallback through the user's configured Hermes CLI provider."""
+        prompt = (
+            f"System role for {agent_name}:\n{system_prompt}\n\n"
+            f"User message:\n{user_message}"
+        )
+        try:
+            result = subprocess.run(
+                ["hermes", "chat", "-Q", "-q", prompt],
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error(f"Hermes CLI fallback 超时 [{agent_name}]")
+            return "[LLM Error: hermes cli timeout]"
+        except Exception as e:
+            logger.error(f"Hermes CLI fallback 异常 [{agent_name}]: {e}")
+            return f"[LLM Error: hermes cli {e}]"
+
+        output = result.stdout.strip()
+        lines = [
+            line for line in output.splitlines()
+            if not line.strip().startswith("session_id:")
+        ]
+        content = "\n".join(lines).strip()
+        if result.returncode != 0 or not content:
+            stderr = result.stderr.strip()
+            logger.error(
+                f"Hermes CLI fallback 失败 [{agent_name}]: "
+                f"returncode={result.returncode}, stderr={stderr[:200]}"
+            )
+            return f"[LLM Error: hermes cli failed: {stderr[:200]}]"
+        logger.info(f"Hermes CLI fallback 成功 [{agent_name}]")
+        return content
 
     def call_json(self, agent_name: str, system_prompt: str, user_message: str,
                   temperature: float = 0.1, max_tokens: int = 2000) -> Dict:

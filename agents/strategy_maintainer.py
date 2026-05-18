@@ -89,6 +89,11 @@ class StrategyMaintainerAgent:
             logger.error(f"加载changelog失败: {e}")
             return []
 
+    def _current_parameter(self, strategy_name: str, parameter: str, default=None):
+        strategy_key = 'main_strategy' if strategy_name == 'main' else 'lab_strategy'
+        strategy = self.strategies.get(strategy_key, {})
+        return strategy.get('parameters', {}).get(parameter, default)
+
     def load_review_report(self, review_path: str = None) -> Dict:
         """加载复盘报告"""
         if review_path is None:
@@ -136,13 +141,16 @@ class StrategyMaintainerAgent:
                     'severity': 'high'
                 })
 
-                # 建议调整仓位限制
-                analysis['parameter_suggestions'].append({
-                    'parameter': 'max_single_position',
-                    'current_value': 0.10,
-                    'suggested_value': 0.08,
-                    'reason': '防止仓位超限'
-                })
+                current_value = self._current_parameter('main', 'max_single_position', 0.10)
+                suggested_value = 0.08
+                if current_value > suggested_value:
+                    analysis['parameter_suggestions'].append({
+                        'strategy': 'main',
+                        'parameter': 'max_single_position',
+                        'current_value': current_value,
+                        'suggested_value': suggested_value,
+                        'reason': '防止仓位超限'
+                    })
 
         # 2. 从成功经验中学习
         what_worked = lessons.get('what_worked', [])
@@ -154,12 +162,16 @@ class StrategyMaintainerAgent:
         what_failed = lessons.get('what_failed', [])
         for item in what_failed:
             if '止损' in item:
-                analysis['parameter_suggestions'].append({
-                    'parameter': 'stop_loss_pct',
-                    'current_value': 0.07,
-                    'suggested_value': 0.06,
-                    'reason': '收紧止损，减少损失'
-                })
+                current_value = self._current_parameter('main', 'stop_loss_pct', 7)
+                suggested_value = 6
+                if current_value > suggested_value:
+                    analysis['parameter_suggestions'].append({
+                        'strategy': 'main',
+                        'parameter': 'stop_loss_pct',
+                        'current_value': current_value,
+                        'suggested_value': suggested_value,
+                        'reason': '收紧止损，减少损失'
+                    })
 
         return analysis
 
@@ -169,14 +181,24 @@ class StrategyMaintainerAgent:
 
         adjustments = []
 
+        seen = set()
+
         # 1. 参数调整
         for suggestion in performance_analysis.get('parameter_suggestions', []):
+            strategy = suggestion.get('strategy', 'main')
+            parameter = suggestion.get('parameter')
+            old_value = suggestion.get('current_value')
+            new_value = suggestion.get('suggested_value')
+            key = (strategy, parameter, json.dumps(new_value, sort_keys=True, ensure_ascii=False))
+            if key in seen or old_value == new_value:
+                continue
+            seen.add(key)
             adjustments.append({
                 'type': 'parameter_adjustment',
-                'strategy': 'main',  # 默认主策略
-                'parameter': suggestion.get('parameter'),
-                'old_value': suggestion.get('current_value'),
-                'new_value': suggestion.get('suggested_value'),
+                'strategy': strategy,
+                'parameter': parameter,
+                'old_value': old_value,
+                'new_value': new_value,
                 'reason': suggestion.get('reason'),
                 'confidence': performance_analysis.get('confidence', 'medium')
             })

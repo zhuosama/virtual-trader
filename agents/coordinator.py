@@ -40,6 +40,403 @@ class MultiAgentCoordinator:
         self.config = self._load_config(config_path)
         self.data_dir = VTRADER_HOME
         self.agents = self._initialize_agents()
+
+    def _atomic_write_json(self, path: str, data):
+        """Write JSON via same-directory temp file, then atomically replace target."""
+        tmp_path = f"{path}.tmp"
+        try:
+            with open(tmp_path, 'w') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+    def _run_ledger_validation(self, strict: bool = False) -> Dict:
+        """Run ledger invariants for this data_dir and return a compact result."""
+        scripts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts")
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        from validate_ledger_consistency import LedgerValidator
+
+        validator = LedgerValidator(root=self.data_dir, strict=strict)
+        results = validator.validate()
+        failures = [r for r in results if r.get("status") == "FAIL"]
+        return {
+            "status": "fail" if failures else "pass",
+            "failures": failures,
+            "results": results,
+        }
+
+    def _persist_risk_actions(self, risk_actions: List[Dict]) -> Dict:
+        """Persist reduce-only risk actions to a durable pending queue."""
+        actions_dir = os.path.join(self.data_dir, "actions")
+        os.makedirs(actions_dir, exist_ok=True)
+        queue_path = os.path.join(actions_dir, "pending.json")
+
+        queued = []
+        if os.path.exists(queue_path):
+            with open(queue_path) as f:
+                queued = json.load(f)
+
+        # Open statuses block duplicate queue entries; terminal statuses may be re-queued.
+        open_statuses = {"proposed", "acknowledged"}
+        open_keys = {
+            (a.get("account"), a.get("code"), a.get("type"), a.get("action"))
+            for a in queued
+            if a.get("status") in open_statuses
+        }
+
+        now = datetime.now()
+        expires_at = self._next_trading_action_expiry(now)
+        added = []
+        existing_open = 0
+        for idx, action in enumerate(risk_actions, 1):
+            key = (action.get("account"), action.get("code"), action.get("type"), action.get("action"))
+            if key in open_keys:
+                existing_open += 1
+                continue
+
+            item = dict(action)
+            action_id = (
+                f"risk-{now.strftime('%Y%m%d')}-{item.get('account')}-"
+                f"{item.get('code')}-{item.get('type')}-{item.get('action')}"
+            )
+            item.setdefault("action_id", action_id)
+            item.setdefault("generated_at", now.isoformat())
+            item.setdefault("status", "proposed")
+            item.setdefault("expires_at", expires_at.isoformat())
+            queued.append(item)
+            added.append(item)
+            open_keys.add(key)
+
+        if added:
+            self._atomic_write_json(queue_path, queued)
+
+        return {
+            "path": queue_path,
+            "added": len(added),
+            "existing_open": existing_open,
+            "total_open": sum(1 for a in queued if a.get("status") in open_statuses),
+        }
+
+    def _process_risk_actions(self, risk_actions: List[Dict]) -> Dict:
+        """Auto-execute deterministic reduce-only actions; queue the rest."""
+        result = {
+            "executed": 0,
+            "failed": 0,
+            "results": [],
+            "queued": {"added": 0, "existing_open": 0, "total_open": 0},
+        }
+        queue_actions = []
+        can_execute_now = self._is_trading_day(datetime.now())
+        for action in risk_actions:
+            if (
+                can_execute_now
+                and action.get("auto_execute")
+                and action.get("action") == "sell"
+                and action.get("sell_shares", 0) > 0
+            ):
+                execution = self._execute_risk_action(action)
+                execution.setdefault("action", dict(action))
+                execution.setdefault("name", action.get("name", ""))
+                execution.setdefault("reason", action.get("reason", ""))
+                result["results"].append(execution)
+                if execution.get("ok"):
+                    result["executed"] += 1
+                else:
+                    result["failed"] += 1
+                    queue_actions.append(action)
+            else:
+                queue_actions.append(action)
+
+        if queue_actions:
+            result["queued"] = self._persist_risk_actions(queue_actions)
+        return result
+
+    def _process_pending_risk_actions(self) -> Dict:
+        """Execute queued auto risk actions on trading days."""
+        result = {"executed": 0, "failed": 0, "skipped": 0, "results": []}
+        queue_path = os.path.join(self.data_dir, "actions", "pending.json")
+        if not os.path.exists(queue_path):
+            return result
+        with open(queue_path) as f:
+            queued = json.load(f)
+
+        if not self._is_trading_day(datetime.now()):
+            result["skipped"] = sum(1 for a in queued if a.get("status") in {"proposed", "acknowledged"})
+            return result
+
+        changed = False
+        for action in queued:
+            if action.get("status") not in {"proposed", "acknowledged"}:
+                continue
+            if not (action.get("auto_execute") and action.get("action") == "sell" and action.get("sell_shares", 0) > 0):
+                continue
+            expires_at = action.get("expires_at")
+            if expires_at and datetime.now() > datetime.fromisoformat(expires_at):
+                action["status"] = "expired"
+                action["expired_at"] = datetime.now().isoformat()
+                result["skipped"] += 1
+                changed = True
+                continue
+            execution = self._execute_risk_action(action, use_action_price=False)
+            execution.setdefault("action", dict(action))
+            execution.setdefault("name", action.get("name", ""))
+            execution.setdefault("reason", action.get("reason", ""))
+            result["results"].append(execution)
+            action["execution_result"] = execution
+            action["executed_at"] = datetime.now().isoformat()
+            if execution.get("ok"):
+                action["status"] = "completed"
+                result["executed"] += 1
+            else:
+                action["status"] = "failed"
+                result["failed"] += 1
+            changed = True
+
+        if changed:
+            self._atomic_write_json(queue_path, queued)
+        return result
+
+    def _is_trading_day(self, dt: datetime) -> bool:
+        return dt.weekday() < 5
+
+    def _next_trading_action_expiry(self, dt: datetime) -> datetime:
+        next_expiry = (dt + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0)
+        for _ in range(14):
+            if self._is_trading_day(next_expiry):
+                return next_expiry
+            next_expiry += timedelta(days=1)
+        return next_expiry
+
+    def _execute_risk_action(self, action: Dict, use_action_price: bool = True) -> Dict:
+        """Execute a reduce-only sell action in the virtual ledger."""
+        if action.get("action") != "sell":
+            return {"ok": False, "error": "only sell actions may be auto-executed", "action": action}
+
+        account_type = action.get("account")
+        code = action.get("code")
+        sell_shares = int(action.get("sell_shares", 0))
+        if account_type not in {"main", "lab"} or not code or sell_shares <= 0:
+            return {"ok": False, "error": "invalid risk action", "action": action}
+
+        account_path = os.path.join(self.data_dir, "accounts", f"{account_type}.json")
+        try:
+            with open(account_path) as f:
+                account = json.load(f)
+        except Exception as e:
+            return {"ok": False, "error": f"account load failed: {e}", "action": action}
+
+        positions = account.get("positions", [])
+        position = next((p for p in positions if p.get("code") == code), None)
+        if not position:
+            return {"ok": False, "error": f"position not found: {code}", "action": action}
+
+        current_shares = int(position.get("shares", 0))
+        if sell_shares > current_shares:
+            return {"ok": False, "error": "sell_shares exceeds current position", "action": action}
+
+        price_source = action.get("price") if use_action_price else position.get("current_price")
+        price = float(price_source or position.get("current_price") or 0)
+        if price <= 0:
+            return {"ok": False, "error": "invalid execution price", "action": action}
+
+        amount = round(price * sell_shares, 2)
+        commission = round(max(amount * 0.0003, 5), 2)
+        stamp_tax = round(amount * 0.001, 2)
+        transfer_fee = round(amount * 0.00002, 2)
+        total_cost = round(commission + stamp_tax + transfer_fee, 2)
+        net_amount = round(amount - total_cost, 2)
+        avg_cost = float(position.get("avg_cost", price))
+        realized_pnl = round((price - avg_cost) * sell_shares - total_cost, 2)
+
+        remaining_shares = current_shares - sell_shares
+        if remaining_shares > 0:
+            position["shares"] = remaining_shares
+            position["current_price"] = price
+            position["market_value"] = round(remaining_shares * price, 2)
+            position["unrealized_pnl"] = round(position["market_value"] - remaining_shares * avg_cost, 2)
+            position["unrealized_pnl_pct"] = round((price / avg_cost - 1) * 100, 2) if avg_cost else 0
+        else:
+            account["positions"] = [p for p in positions if p.get("code") != code]
+
+        account["cash"] = round(account.get("cash", 0) + net_amount, 2)
+        account["portfolio_market_value"] = round(sum(p.get("market_value", 0) for p in account.get("positions", [])), 2)
+        account["total_value"] = round(account["cash"] + account["portfolio_market_value"], 2)
+        account["total_pnl"] = round(account["total_value"] - account.get("initial_capital", 0), 2)
+        initial_capital = account.get("initial_capital", 1)
+        account["total_pnl_pct"] = round(account["total_pnl"] / initial_capital * 100, 2) if initial_capital else 0
+        account["position_pct"] = round(account["portfolio_market_value"] / account["total_value"] * 100, 1) if account["total_value"] else 0
+        account["trade_count"] = account.get("trade_count", 0) + 1
+        account["updated_at"] = datetime.now().strftime("%Y-%m-%dT15:00:00")
+        self._atomic_write_json(account_path, account)
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        trades_dir = os.path.join(self.data_dir, "trades", today[:7])
+        os.makedirs(trades_dir, exist_ok=True)
+        trade_path = os.path.join(trades_dir, f"{today}.json")
+        if os.path.exists(trade_path):
+            with open(trade_path) as f:
+                trade_record = json.load(f)
+        else:
+            trade_record = {
+                "date": today,
+                "is_trading_day": True,
+                "market_summary": {},
+                "trades": [],
+                "account_snapshots": {},
+            }
+
+        trade_record.setdefault("trades", []).append({
+            "account": account_type,
+            "time": "15:00",
+            "action": "sell",
+            "code": code,
+            "name": action.get("name", position.get("name", "")),
+            "type": "stock",
+            "price": price,
+            "shares": sell_shares,
+            "amount": amount,
+            "commission": commission,
+            "stamp_tax": stamp_tax,
+            "transfer_fee": transfer_fee,
+            "total_cost": total_cost,
+            "net_amount": net_amount,
+            "signal": action.get("reason", "风控自动减仓"),
+            "strategy_ref": "risk_controller",
+            "realized_pnl": realized_pnl,
+            "execution_type": "executed",
+            "source": "auto_risk_reduction",
+            "generated_at": datetime.now().isoformat(),
+            "rationale": "deterministic reduce-only risk rule",
+        })
+        trade_record.setdefault("account_snapshots", {})[account_type] = {
+            "total_value": account["total_value"],
+            "daily_pnl": account.get("daily_pnl", 0),
+            "daily_pnl_pct": account.get("daily_pnl_pct", 0),
+        }
+        self._atomic_write_json(trade_path, trade_record)
+
+        action_id = action.get(
+            "action_id",
+            f"risk-{today.replace('-', '')}-{account_type}-{code}-{action.get('type', 'risk_reduction')}-sell",
+        )
+        return {
+            "ok": True,
+            "action_id": action_id,
+            "account": account_type,
+            "code": code,
+            "executed_shares": sell_shares,
+            "price": price,
+            "net_amount": net_amount,
+            "realized_pnl": realized_pnl,
+            "trade_record_path": trade_path,
+        }
+
+    def _pending_retry_dir(self) -> str:
+        return os.path.join(self.data_dir, "strategies", "proposals", "pending_retry")
+
+    def _persist_pending_retry_proposal(self, proposal: Dict, audit_result: Dict) -> str:
+        """Persist a proposal that hit audit INFRA_ERROR so a later run can retry it."""
+        pending_dir = self._pending_retry_dir()
+        os.makedirs(pending_dir, exist_ok=True)
+        proposal_id = proposal["proposal_id"]
+        retry_path = os.path.join(pending_dir, f"{proposal_id}.json")
+        retry_count = 0
+        if os.path.exists(retry_path):
+            with open(retry_path) as f:
+                retry_count = json.load(f).get("retry_count", 0)
+
+        record = {
+            "proposal_id": proposal_id,
+            "status": "pending_retry",
+            "retry_count": retry_count,
+            "updated_at": datetime.now().isoformat(),
+            "last_audit_result": audit_result,
+            "proposal": proposal,
+        }
+        self._atomic_write_json(retry_path, record)
+        return retry_path
+
+    def _retry_pending_audit_proposals(self, maintainer, review_report: Dict, max_retries: int = 5) -> Dict:
+        """Retry proposals previously blocked by audit INFRA_ERROR."""
+        pending_dir = self._pending_retry_dir()
+        result = {
+            "attempted": 0,
+            "auto_merged": 0,
+            "still_pending": 0,
+            "human_review": 0,
+            "terminal": 0,
+            "retry_exhausted": 0,
+        }
+        if not os.path.exists(pending_dir):
+            return result
+
+        llm = getattr(maintainer, "llm", None)
+        if llm is None:
+            result["blocked"] = "LLM client unavailable"
+            return result
+
+        for name in sorted(os.listdir(pending_dir)):
+            if not name.endswith(".json"):
+                continue
+            retry_path = os.path.join(pending_dir, name)
+            with open(retry_path) as f:
+                record = json.load(f)
+            proposal = record.get("proposal", record)
+            proposal_id = proposal["proposal_id"]
+            if record.get("status") == "human_review":
+                result["human_review"] += 1
+                continue
+            if record.get("retry_count", 0) >= max_retries:
+                audit_layer.append_audit_log({
+                    "proposal_id": proposal_id,
+                    "audited_at": datetime.now().isoformat(),
+                    "decision": "BLOCKED",
+                    "reason": f"retry exhausted after {record.get('retry_count', 0)} attempts",
+                }, log_path=os.path.join(self.data_dir, "strategies", "audit_log.json"))
+                os.unlink(retry_path)
+                result["retry_exhausted"] += 1
+                continue
+
+            result["attempted"] += 1
+
+            oos_backtest = self._build_oos_backtest_evidence(maintainer, proposal, review_report)
+            audit_result = audit_layer.review(
+                proposal=proposal,
+                changelog=getattr(maintainer, "changelog", []),
+                oos_backtest=oos_backtest,
+                risk_rules=self._read_text(os.path.join(self.data_dir, "references", "risk-rules.md")),
+                current_portfolio=review_report.get("accounts", {}),
+                recent_trades=self._load_recent_trades(),
+                current_account=review_report.get("accounts", {}).get(proposal.get("account", ""), {}),
+                llm_client=llm,
+                audit_log_path=os.path.join(self.data_dir, "strategies", "audit_log.json"),
+            )
+            decision = audit_result.get("decision")
+            if decision == "AUTO_MERGE":
+                maintainer.commit_approved(proposal_id)
+                os.unlink(retry_path)
+                result["auto_merged"] += 1
+            elif decision == "PENDING_RETRY":
+                record["retry_count"] = record.get("retry_count", 0) + 1
+                record["updated_at"] = datetime.now().isoformat()
+                record["last_audit_result"] = audit_result
+                self._atomic_write_json(retry_path, record)
+                result["still_pending"] += 1
+            elif decision == "HUMAN_REVIEW":
+                record["status"] = "human_review"
+                record["updated_at"] = datetime.now().isoformat()
+                record["last_audit_result"] = audit_result
+                self._atomic_write_json(retry_path, record)
+                result["human_review"] += 1
+            else:
+                os.unlink(retry_path)
+                result["terminal"] += 1
+
+        return result
     
     # 辅助函数：数据格式化
     def _format_currency(self, amount: float) -> str:
@@ -116,7 +513,9 @@ class MultiAgentCoordinator:
             'workflow_type': 'pre_market',
             'steps': [],
             'final_output': None,
-            'status': 'success'
+            'status': 'success',
+            'warnings': [],
+            'events': [],
         }
         
         try:
@@ -155,6 +554,7 @@ class MultiAgentCoordinator:
             
             # 最终输出
             decision = validation_result.get('decision', 'REJECTED')
+            workflow_result['risk_decision'] = decision
             
             if decision == 'APPROVED':
                 final_output = self._generate_approved_output(market_analysis, trading_plan, validation_result)
@@ -164,7 +564,11 @@ class MultiAgentCoordinator:
                 final_output = self._generate_rejected_output(validation_result)
             
             workflow_result['final_output'] = final_output
-            workflow_result['status'] = 'success'
+            if decision == 'APPROVED':
+                workflow_result['status'] = 'success'
+            else:
+                workflow_result['status'] = 'degraded'
+                workflow_result['warnings'].extend(validation_result.get('warnings', []))
             
             logger.info("盘前工作流完成")
             
@@ -395,6 +799,7 @@ class MultiAgentCoordinator:
             'final_output': None,
             'status': 'success',
             'warnings': [],
+            'events': [],
         }
         
         try:
@@ -406,6 +811,10 @@ class MultiAgentCoordinator:
                 step_status = 'success'
                 if not settlement.get('accounts_updated', False):
                     reason = settlement.get('degraded_reason', 'no price updates')
+                    workflow_result['warnings'].append(f"结算: {reason}")
+                    step_status = 'degraded'
+                if settlement.get('ledger_validation_passed') is False:
+                    reason = settlement.get('degraded_reason', 'ledger validation failed')
                     workflow_result['warnings'].append(f"结算: {reason}")
                     step_status = 'degraded'
                 workflow_result['steps'].append({
@@ -426,8 +835,14 @@ class MultiAgentCoordinator:
             
             # 检查 review 中的 mistakes
             mistakes = review_report.get('mistakes', [])
-            if mistakes:
-                workflow_result['warnings'].append(f"{len(mistakes)} 个风控问题待处理")
+            risk_mistake_count = sum(
+                1
+                for mistake in mistakes
+                if str(mistake.get("type", "")).lower() in {"risk", "risk_control"}
+            )
+            other_mistake_count = len(mistakes) - risk_mistake_count
+            risk_handled_count = 0
+            risk_unresolved_count = 0
             
             workflow_result['steps'].append({
                 'step': 1,
@@ -439,6 +854,15 @@ class MultiAgentCoordinator:
             # 步骤1.5: 风控减仓检查（reduce-only）
             if 'risk_controller' in self.agents:
                 logger.info("步骤1.5: 风控减仓检查")
+                pending_execution = self._process_pending_risk_actions()
+                if pending_execution.get("executed") or pending_execution.get("failed"):
+                    workflow_result['pending_risk_action_execution'] = pending_execution
+                    if pending_execution.get("executed"):
+                        risk_handled_count += pending_execution["executed"]
+                        workflow_result['events'].append(f"{pending_execution['executed']} 条待处理风控减仓已自动执行")
+                    if pending_execution.get("failed"):
+                        risk_unresolved_count += pending_execution["failed"]
+                        workflow_result['warnings'].append(f"{pending_execution['failed']} 条待处理风控减仓自动执行失败")
                 risk_ctrl = self.agents['risk_controller']
                 reduction_result = risk_ctrl.validate_and_reduce()
                 risk_actions = reduction_result.get('risk_reduction_actions', [])
@@ -446,11 +870,45 @@ class MultiAgentCoordinator:
                     for action in risk_actions:
                         logger.warning(f"风控减仓建议: {action.get('name', '')} - {action.get('reason', '')}")
                     workflow_result['risk_reduction_actions'] = risk_actions
-                    workflow_result['warnings'].append(f"{len(risk_actions)} 条减仓建议待执行")
+                    execution_result = self._process_risk_actions(risk_actions)
+                    workflow_result['risk_action_execution'] = execution_result
+                    workflow_result['risk_action_queue'] = execution_result.get('queued', {})
+                    if execution_result.get('executed'):
+                        risk_handled_count += execution_result["executed"]
+                        workflow_result['events'].append(f"{execution_result['executed']} 条风控减仓已自动执行")
+                    queued_count = workflow_result['risk_action_queue'].get('added', 0)
+                    if queued_count:
+                        risk_unresolved_count += queued_count
+                        workflow_result['warnings'].append(f"{queued_count} 条减仓建议待执行")
+                    if execution_result.get('failed'):
+                        risk_unresolved_count += execution_result["failed"]
+                        workflow_result['warnings'].append(f"{execution_result['failed']} 条风控减仓自动执行失败")
+
+            unresolved_risk_review_mistakes = max(0, risk_mistake_count - risk_handled_count)
+            if risk_mistake_count:
+                unresolved_risk_count = max(unresolved_risk_review_mistakes, risk_unresolved_count)
+            else:
+                unresolved_risk_count = risk_unresolved_count
+            unresolved_mistakes = other_mistake_count + unresolved_risk_count
+            if unresolved_mistakes:
+                workflow_result['warnings'].append(f"{unresolved_mistakes} 个风控问题待处理")
             
             # 步骤2: Strategy Maintainer Agent
             logger.info("步骤2: Strategy Maintainer Agent")
             maintainer = self.agents['strategy_maintainer']
+            retry_result = self._retry_pending_audit_proposals(maintainer, review_report)
+            if (
+                retry_result.get("attempted")
+                or retry_result.get("human_review")
+                or retry_result.get("retry_exhausted")
+            ):
+                workflow_result['pending_retry_audit'] = retry_result
+                if retry_result.get("still_pending"):
+                    workflow_result['warnings'].append(f"{retry_result['still_pending']} 个审计重试仍待处理")
+                if retry_result.get("human_review"):
+                    workflow_result['warnings'].append(f"{retry_result['human_review']} 个审计重试需要人工确认")
+                if retry_result.get("retry_exhausted"):
+                    workflow_result['warnings'].append(f"{retry_result['retry_exhausted']} 个审计重试已耗尽")
             performance_analysis = maintainer.analyze_strategy_performance(review_report)
             adjustments = maintainer.generate_strategy_adjustments(performance_analysis)
             apply_result = self._audit_strategy_adjustments(
@@ -580,8 +1038,7 @@ class MultiAgentCoordinator:
                 
                 # 写回文件
                 path = os.path.join(self.data_dir, "accounts", f"{acct_type}.json")
-                with open(path, 'w') as f:
-                    json.dump(acct, f, ensure_ascii=False, indent=2)
+                self._atomic_write_json(path, acct)
                 
                 results[f'{acct_type}_value'] = acct['total_value']
                 results[f'{acct_type}_pnl'] = acct.get('daily_pnl', 0)
@@ -597,8 +1054,9 @@ class MultiAgentCoordinator:
             
             main_acct = accounts.get('main')
             lab_acct = accounts.get('lab')
-            # 获取沪深300涨跌幅
-            hs300_pct = 0
+            # 获取沪深300涨跌幅；失败时保持 unknown，避免把占位 0 当成真实 benchmark。
+            hs300_pct = None
+            benchmark_note = None
             try:
                 url = "https://qt.gtimg.cn/q=sh000300"
                 r = subprocess.run(['curl', '-s', '-m', '10', url], capture_output=True, timeout=15)
@@ -608,8 +1066,17 @@ class MultiAgentCoordinator:
                         parts = line.split('~')
                         if len(parts) >= 38 and parts[32]:
                             hs300_pct = float(parts[32])
+                            break
             except Exception:
-                pass
+                benchmark_note = "api_unavailable"
+            if hs300_pct is None and benchmark_note is None:
+                benchmark_note = "api_unavailable"
+
+            existing_idx = next((i for i, e in enumerate(perf) if e.get('date') == today), None)
+            existing_entry = perf[existing_idx] if existing_idx is not None else None
+            if hs300_pct is None and existing_entry and existing_entry.get('hs300_pct') is not None:
+                hs300_pct = existing_entry.get('hs300_pct')
+                benchmark_note = None
             
             entry = {
                 'date': today,
@@ -617,18 +1084,20 @@ class MultiAgentCoordinator:
                 'lab_pct': lab_acct.get('daily_pnl_pct', 0) if lab_acct else 0,
                 'hs300_pct': hs300_pct,
             }
-            entry['main_beat'] = entry['main_pct'] >= entry['hs300_pct']
-            entry['lab_beat'] = entry['lab_pct'] >= entry['hs300_pct']
+            if hs300_pct is None:
+                entry['benchmark_note'] = benchmark_note
+                entry['main_beat'] = None
+                entry['lab_beat'] = None
+            else:
+                entry['benchmark_source'] = "tencent_api"
+                entry['main_beat'] = entry['main_pct'] >= hs300_pct
+                entry['lab_beat'] = entry['lab_pct'] >= hs300_pct
             
             # Upsert by date — replace existing entry for today, don't duplicate
-            existing_idx = next((i for i, e in enumerate(perf) if e.get('date') == today), None)
             if existing_idx is not None:
                 perf[existing_idx] = entry
             else:
                 perf.append(entry)
-            # Keep last 30 days
-            if len(perf) > 30:
-                perf = perf[-30:]
             
             with open(perf_path, 'w') as f:
                 json.dump(perf, f, ensure_ascii=False, indent=2)
@@ -642,6 +1111,27 @@ class MultiAgentCoordinator:
         results['accounts_updated'] = any(f'{a}_value' in results for a in ['main', 'lab'])
         if not results['accounts_updated']:
             results['degraded_reason'] = 'no price updates received'
+        try:
+            validation = self._run_ledger_validation(strict=False)
+            results['ledger_validation'] = validation
+            results['ledger_validation_passed'] = validation['status'] == 'pass'
+            if not results['ledger_validation_passed']:
+                failed_invs = ", ".join(r['inv'] for r in validation['failures'])
+                reason = f"ledger validation failed: {failed_invs}"
+                if results.get('degraded_reason'):
+                    results['degraded_reason'] = f"{results['degraded_reason']}; {reason}"
+                else:
+                    results['degraded_reason'] = reason
+                logger.warning(reason)
+        except Exception as e:
+            reason = f"ledger validation error: {e}"
+            results['ledger_validation'] = {"status": "error", "error": str(e), "failures": []}
+            results['ledger_validation_passed'] = False
+            if results.get('degraded_reason'):
+                results['degraded_reason'] = f"{results['degraded_reason']}; {reason}"
+            else:
+                results['degraded_reason'] = reason
+            logger.warning(reason)
         return results
 
     def _audit_strategy_adjustments(self, maintainer, adjustments: List[Dict], review_report: Dict) -> Dict:
@@ -696,6 +1186,9 @@ class MultiAgentCoordinator:
         if decision == "AUTO_MERGE":
             maintainer.commit_approved(proposal["proposal_id"])
             apply_result['applied_adjustments'] = adjustments
+        elif decision == "PENDING_RETRY":
+            self._persist_pending_retry_proposal(proposal, audit_result)
+            apply_result['failed_adjustments'] = adjustments
         else:
             apply_result['failed_adjustments'] = adjustments
 
@@ -853,24 +1346,73 @@ class MultiAgentCoordinator:
 
         return recent_trades[-200:]
     
+    def _collect_risk_execution_results(self, workflow_result: Dict) -> List[Dict]:
+        """Collect auto risk execution results and enrich names from source actions."""
+        workflow_result = workflow_result or {}
+        action_lookup = {}
+        for action in workflow_result.get("risk_reduction_actions", []):
+            key = (action.get("account"), action.get("code"))
+            action_lookup[key] = action
+
+        results = []
+        for section in ("pending_risk_action_execution", "risk_action_execution"):
+            execution = workflow_result.get(section, {})
+            for result in execution.get("results", []):
+                item = dict(result)
+                action = item.get("action", {})
+                lookup = action_lookup.get((item.get("account"), item.get("code")), {})
+                item.setdefault("account", action.get("account"))
+                item.setdefault("code", action.get("code"))
+                item.setdefault("name", action.get("name") or lookup.get("name", ""))
+                item.setdefault("reason", action.get("reason") or lookup.get("reason", ""))
+                results.append(item)
+        return results
+
     def _generate_post_market_output(self, review_report: Dict, update_report: Dict, workflow_result: Dict = None) -> str:
         """生成盘后输出"""
         output_parts = []
+        workflow_result = workflow_result or {}
         
         # P3: 显示警告
-        warnings = (workflow_result or {}).get('warnings', [])
+        warnings = workflow_result.get('warnings', [])
         if warnings:
             output_parts.append("⚠️ 警告")
             for w in warnings:
                 output_parts.append(f"  • {w}")
             output_parts.append("")
+
+        events = workflow_result.get('events', [])
+        if events:
+            output_parts.append("✅ 自动处置")
+            for event in events:
+                output_parts.append(f"  • {event}")
+            output_parts.append("")
         
         # P2: 显示减仓建议
-        risk_actions = (workflow_result or {}).get('risk_reduction_actions', [])
+        risk_actions = workflow_result.get('risk_reduction_actions', [])
         if risk_actions:
             output_parts.append("🔴 风控减仓建议（reduce-only）")
             for action in risk_actions:
                 output_parts.append(f"  • {action.get('account','')}/{action.get('name','')}({action.get('code','')}): {action.get('reason','')}")
+            output_parts.append("")
+
+        risk_execution_results = self._collect_risk_execution_results(workflow_result)
+        if risk_execution_results:
+            output_parts.append("✅ 自动风控执行")
+            for result in risk_execution_results:
+                account = result.get("account", "")
+                code = result.get("code", "")
+                name = result.get("name", "")
+                shares = result.get("executed_shares", 0)
+                price = result.get("price", 0)
+                if result.get("ok"):
+                    display_name = f"{name} ({code})" if name else code
+                    output_parts.append(f"  • {account}账户 卖出 {display_name}: {shares}股 @ {price:.2f}元")
+                    if result.get("net_amount") is not None:
+                        output_parts.append(f"     到账: {result.get('net_amount', 0):,.0f}元")
+                else:
+                    error = result.get("error", "unknown error")
+                    output_parts.append(f"  • {account}/{code}: 自动执行失败 - {error}")
             output_parts.append("")
         
         # 标题和时间
@@ -1000,6 +1542,9 @@ class MultiAgentCoordinator:
                 
                 if len(trade_details) > 3:
                     output_parts.append(f"  ... (共{len(trade_details)}笔交易，显示前3笔)")
+        elif risk_execution_results:
+            executed_count = sum(1 for result in risk_execution_results if result.get("ok"))
+            output_parts.append(f"• 自动风控交易: {executed_count}笔")
         else:
             output_parts.append("• 今日无交易")
         
