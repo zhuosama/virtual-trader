@@ -51,17 +51,23 @@ SENSITIVE_KEYS = frozenset({
 
 # Workflow fields to exclude from API responses
 WORKFLOW_EXCLUDE = frozenset({"final_output", "raw_output", "full_log"})
+ADMIN_LOG_EXCLUDE = frozenset({"reportText", "traceback", "dailySeries", "tradeSummary", "snapshot"})
 MAX_BODY_BYTES = 1 << 20
 LEDGER_HEALTH_TTL_SECONDS = 30
 WORKFLOW_LIST_LIMIT = 20
 _LEDGER_HEALTH_CACHE = {"root": None, "expires_at": 0, "value": None}
 _LEDGER_HEALTH_LOCK = threading.Lock()
+_ADMIN_ACTION_LOG_LOCK = threading.Lock()
 CONSOLE_NONCE = secrets.token_urlsafe(24)
 
 
 def is_sensitive(key: str) -> bool:
     k = key.lower()
-    return k in SENSITIVE_KEYS or any(s in k for s in ("secret", "key", "token", "password", "credential"))
+    if k in SENSITIVE_KEYS:
+        return True
+    if any(s in k for s in ("secret", "token", "password", "credential")):
+        return True
+    return bool(re.search(r"(api|access|private|encryption|auth)[_-]?keys?$", k))
 
 
 def mask_sensitive(d: dict) -> dict:
@@ -90,6 +96,79 @@ def redact_local_paths(text) -> str:
     value = value.replace(str(VTRADER_HOME), "<VTRADER_HOME>")
     value = re.sub(r"/Users/[^\s,;:)]+", "<LOCAL_PATH>", value)
     return value
+
+
+def public_path(path_value):
+    """Convert known local paths to repo-relative strings for audit logs."""
+    if not path_value:
+        return None
+    text = str(path_value)
+    roots = (VTRADER_HOME, Path.home() / ".hermes" / "virtual-trader")
+    for root in roots:
+        root_text = str(root)
+        if text == root_text:
+            return "."
+        if text.startswith(root_text + os.sep):
+            return text[len(root_text) + 1:]
+    return redact_local_paths(text)
+
+
+def sanitize_for_admin_log(value):
+    """Small, path-safe representation for append-only console action logs."""
+    if isinstance(value, dict):
+        clean = {}
+        for key, item in value.items():
+            if key in ADMIN_LOG_EXCLUDE:
+                continue
+            if is_sensitive(key):
+                clean[key] = "***"
+            elif key in {"outputPath", "manifestPath"}:
+                clean[key] = public_path(item)
+            else:
+                clean[key] = sanitize_for_admin_log(item)
+        return clean
+    if isinstance(value, list):
+        return [sanitize_for_admin_log(item) for item in value[:20]]
+    if isinstance(value, str):
+        return public_path(value) if "/" in value else value
+    return value
+
+
+def changed_files_for_admin_log(operation, result):
+    if operation == "backtest.run" and result.get("status") == "completed" and result.get("runId"):
+        return [f"backtest/runs/{result['runId']}.json"]
+    if operation == "export.public_snapshot" and result.get("written"):
+        return [
+            path for path in (
+                public_path(result.get("outputPath")),
+                public_path(result.get("manifestPath")),
+            )
+            if path
+        ]
+    if operation == "export.import_to_site":
+        return [public_path(path) for path in result.get("changedFiles", [])]
+    return []
+
+
+def append_admin_action_log(operation, path, request_body, result, status_code):
+    """Append a compact audit trail for local console write actions."""
+    result = result or {}
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "operation": operation,
+        "method": "POST",
+        "path": path,
+        "statusCode": status_code,
+        "ok": status_code < 400 and result.get("ok", result.get("status") == "completed"),
+        "request": sanitize_for_admin_log(request_body or {}),
+        "result": sanitize_for_admin_log(result),
+        "changedFiles": changed_files_for_admin_log(operation, result),
+    }
+    log_path = VTRADER_HOME / "logs" / "admin_actions.jsonl"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with _ADMIN_ACTION_LOG_LOCK:
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def normalize_list_field(value):
@@ -656,6 +735,7 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             # Run backtest (synchronous for Phase 3A)
             result = backtest_adapter.run_backtest_task(body)
             status = 201 if result["status"] == "completed" else 500
+            append_admin_action_log("backtest.run", path, body, result, status)
             self._json(result, status)
 
         elif path == "/api/virtual-trader/export/public-snapshot":
@@ -664,7 +744,9 @@ class ConsoleHandler(BaseHTTPRequestHandler):
                 return
             dry_run = body.get("dryRun", True)
             result = export_adapter.write_public_snapshot(dry_run=dry_run)
-            self._json(result, 200 if result.get("ok") else 422)
+            status = 200 if result.get("ok") else 422
+            append_admin_action_log("export.public_snapshot", path, body, result, status)
+            self._json(result, status)
 
         elif path == "/api/virtual-trader/export/import-to-site":
             body = self._read_body()
@@ -672,7 +754,9 @@ class ConsoleHandler(BaseHTTPRequestHandler):
                 return
             dry_run = body.get("dryRun", True)
             result = site_bridge_adapter.run_site_import(dry_run=dry_run)
-            self._json(result, 200 if result.get("ok") else 422)
+            status = 200 if result.get("ok") else 422
+            append_admin_action_log("export.import_to_site", path, body, result, status)
+            self._json(result, status)
 
         else:
             self._not_found()

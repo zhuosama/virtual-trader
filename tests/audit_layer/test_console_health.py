@@ -512,6 +512,129 @@ class TestConsoleHealth(unittest.TestCase):
 
         self.assertTrue(handler._require_console_nonce())
 
+    def test_backtest_post_appends_admin_action_log(self):
+        body = {"strategyId": "main-v1.0.5", "startDate": "2026-05-01", "endDate": "2026-05-10"}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/backtests"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        result = {
+            "status": "completed",
+            "runId": "bt-001",
+            "reportText": "private report should not be logged",
+            "traceback": "private stack should not be logged",
+            "dailySeries": [{"date": "2026-05-01"}],
+            "tradeSummary": [{"code": "000001"}],
+        }
+        with patch.object(self.server, "get_backtest_strategy_options", return_value=[{"id": "main-v1.0.5"}]), \
+                patch.object(self.server.backtest_adapter, "run_backtest_task", return_value=result):
+            handler.do_POST()
+
+        log_path = Path(self.tmpdir) / "logs" / "admin_actions.jsonl"
+        entry = json.loads(log_path.read_text(encoding="utf-8").strip())
+        self.assertEqual(captured["status"], 201)
+        self.assertEqual(entry["operation"], "backtest.run")
+        self.assertEqual(entry["path"], "/api/virtual-trader/backtests")
+        self.assertEqual(entry["statusCode"], 201)
+        self.assertTrue(entry["ok"])
+        self.assertEqual(entry["request"]["strategyId"], "main-v1.0.5")
+        self.assertEqual(entry["result"]["runId"], "bt-001")
+        self.assertEqual(entry["changedFiles"], ["backtest/runs/bt-001.json"])
+        self.assertNotIn("reportText", entry["result"])
+        self.assertNotIn("traceback", entry["result"])
+        self.assertNotIn("dailySeries", entry["result"])
+        self.assertNotIn("tradeSummary", entry["result"])
+
+    def test_export_post_admin_action_log_redacts_sensitive_fields_and_paths(self):
+        body = {"dryRun": False, "api_key": "live-secret"}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/export/public-snapshot"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        handler._json = lambda data, status=200: None
+
+        result = {
+            "ok": True,
+            "dryRun": False,
+            "written": True,
+            "outputPath": "/Users/zhuosama/.hermes/virtual-trader/public-export/public-snapshot.json",
+            "manifestPath": "/Users/zhuosama/.hermes/virtual-trader/public-export/manifest.json",
+            "scan": {"findings": []},
+        }
+        with patch.object(self.server.export_adapter, "write_public_snapshot", return_value=result):
+            handler.do_POST()
+
+        log_path = Path(self.tmpdir) / "logs" / "admin_actions.jsonl"
+        entry = json.loads(log_path.read_text(encoding="utf-8").strip())
+        self.assertEqual(entry["operation"], "export.public_snapshot")
+        self.assertEqual(entry["request"]["api_key"], "***")
+        self.assertEqual(entry["changedFiles"], [
+            "public-export/public-snapshot.json",
+            "public-export/manifest.json",
+        ])
+        self.assertNotIn("/Users/zhuosama", str(entry))
+
+    def test_failed_backtest_admin_log_does_not_claim_changed_file(self):
+        result = {"status": "failed", "runId": "bt-fail", "error": "disk full"}
+
+        changed = self.server.changed_files_for_admin_log("backtest.run", result)
+
+        self.assertEqual(changed, [])
+
+    def test_import_to_site_post_appends_admin_action_log(self):
+        body = {"dryRun": False}
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/export/import-to-site"
+        handler.headers = {
+            "X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE,
+            "Content-Length": str(len(json.dumps(body))),
+        }
+        handler.rfile = BytesIO(json.dumps(body).encode("utf-8"))
+        handler._json = lambda data, status=200: None
+
+        result = {
+            "ok": True,
+            "dryRun": False,
+            "written": True,
+            "changedFiles": [
+                "/Users/zhuosama/obsidian-wiki/site/src/data/virtual-trader/public-snapshot.json",
+            ],
+        }
+        with patch.object(self.server.site_bridge_adapter, "run_site_import", return_value=result):
+            handler.do_POST()
+
+        log_path = Path(self.tmpdir) / "logs" / "admin_actions.jsonl"
+        entry = json.loads(log_path.read_text(encoding="utf-8").strip())
+        self.assertEqual(entry["operation"], "export.import_to_site")
+        self.assertEqual(entry["changedFiles"], ["<LOCAL_PATH>"])
+        self.assertNotIn("/Users/zhuosama", str(entry))
+
+    def test_admin_log_sensitive_detection_does_not_mask_benign_key_names(self):
+        payload = {
+            "cacheKey": "cache-v1",
+            "lookupKey": "lookup-v1",
+            "apiKey": "secret",
+            "access_key": "secret",
+            "secret": "secret",
+        }
+
+        sanitized = self.server.sanitize_for_admin_log(payload)
+
+        self.assertEqual(sanitized["cacheKey"], "cache-v1")
+        self.assertEqual(sanitized["lookupKey"], "lookup-v1")
+        self.assertEqual(sanitized["apiKey"], "***")
+        self.assertEqual(sanitized["access_key"], "***")
+        self.assertEqual(sanitized["secret"], "***")
+
 
 if __name__ == "__main__":
     unittest.main()

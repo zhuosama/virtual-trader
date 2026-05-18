@@ -84,15 +84,34 @@ python3 console/server.py
 - 所有 POST 写入口要求 `X-Hermes-Console-Nonce`
 - public export 写入前必须通过 strict ledger gate
 
+### T6: Admin Diagnostics + Action Log (2026-05-18)
+
+- `GET /api/virtual-trader/health` 作为 `/health` 的 API alias，便于前端/脚本统一轮询
+- Data / Strategies / Backtests / Export 页面顶部都有 operational health strip：
+  latest workflow、ledger、pending risk、pending audit、issues
+- Data Manager 的 workflow 表展示 warnings/events 摘要，并对本机路径脱敏
+- Strategy Manager 兼容 `iteration_history` / `learned_lessons` 的 list、JSON 字符串、
+  `→` 分隔字符串； canonical strategy keys 优先于 legacy keys，避免重复展示
+- Data Manager 持仓 P&L 兼容 `unrealized_pnl_pct` / `unrealized_pnl` 字段
+- 所有 console POST 写操作追加 `logs/admin_actions.jsonl`：
+  operation、request summary、result summary、changedFiles、statusCode、timestamp
+- admin action log 会过滤 `reportText`、`traceback`、`dailySeries`、`tradeSummary`、
+  `snapshot` 等大块/敏感字段，并 mask key/token/secret/password 类字段
+- 新增任何 console POST 写入口时，必须同步调用 `append_admin_action_log(...)`
+  并增加一条回归测试；否则该入口不算完成
+
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Gateway + business health check |
+| GET | `/api/virtual-trader/health` | Gateway + business health check (API alias) |
 | GET | `/console/virtual-trader` | 首页 |
 | GET | `/console/virtual-trader/data` | Data Manager |
 | GET | `/console/virtual-trader/strategies` | Strategy Manager |
 | GET | `/console/virtual-trader/backtests` | Backtest Center |
+| GET | `/console/virtual-trader/backtests/compare` | Backtest Compare |
+| GET | `/console/virtual-trader/export` | Public Export UI |
 | GET | `/api/virtual-trader/summary` | 系统摘要 |
 | GET | `/api/virtual-trader/accounts` | 账户列表 |
 | GET | `/api/virtual-trader/accounts/:id` | 账户详情 |
@@ -103,6 +122,8 @@ python3 console/server.py
 | GET | `/api/virtual-trader/backtests` | 回测 run 列表 |
 | POST | `/api/virtual-trader/backtests` | 创建回测 |
 | GET | `/api/virtual-trader/backtests/:runId` | 回测结果 |
+| GET | `/api/virtual-trader/export/public-preview` | Public snapshot dry preview |
+| GET | `/api/virtual-trader/export/site-compatibility` | 本地网站导入兼容性检查 |
 | POST | `/api/virtual-trader/export/public-snapshot` | 写入本地 public-export 快照 |
 | POST | `/api/virtual-trader/export/import-to-site` | 导入本地网站数据目录 |
 
@@ -118,6 +139,7 @@ python3 console/server.py
 - public export import 失败会自动回滚已写入站点文件
 - POST 写入口要求页面注入的 per-process nonce；无 nonce 返回 403
 - public export 写入前执行 `validate_ledger_consistency.py --strict`
+- POST 写操作追加本地 append-only admin action log，日志只保留摘要和相对路径
 
 ## Files
 
@@ -138,6 +160,13 @@ console/
 └── README.md              # This file
 ```
 
+Runtime audit artifact:
+
+```
+logs/
+└── admin_actions.jsonl    # local console POST action log, append-only JSONL
+```
+
 ## Phase roadmap
 
 - T1: Gateway 骨架 ✅
@@ -147,3 +176,4 @@ console/
 - T3B: Backtest Result Viewer 图表与交互 ✅
 - T4: Public Export + health hardening ✅
 - T5: Truthful Health + write guards ✅
+- T6: Admin diagnostics + action log ✅

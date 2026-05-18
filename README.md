@@ -117,6 +117,12 @@ validation fails, risk actions are pending, or audit retry proposals remain.
 Ledger validation is cached briefly and protected by a lock so health probes
 do not overload the validator.
 
+`/api/virtual-trader/health` is an alias for the same business-health payload.
+The console management pages render that health strip on Data, Strategies,
+Backtests, and Export so operators do not lose system context while drilling
+into a page. Console write actions (`backtests`, `public-snapshot`,
+`import-to-site`) append sanitized summaries to `logs/admin_actions.jsonl`.
+
 Public export is gated by the same strict ledger validator. If
 `scripts/validate_ledger_consistency.py --strict` fails, the console export
 adapter refuses to write `public-export/public-snapshot.json`; the website must
