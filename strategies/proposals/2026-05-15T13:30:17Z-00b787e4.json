@@ -1,0 +1,21 @@
+{
+  "proposal_id": "2026-05-15T13:30:17Z-00b787e4",
+  "proposed_at": "2026-05-15T13:30:17.582339+00:00",
+  "proposer": "strategy_maintainer",
+  "account": "main",
+  "change_type": "strategy",
+  "current_version": "1.0.5",
+  "proposed_version": "1.0.5.pending",
+  "diff": [],
+  "triggering_events": [
+    {
+      "reason": ""
+    }
+  ],
+  "rationale": "",
+  "_raw_adjustments": [
+    {
+      "type": "test"
+    }
+  ]
+}

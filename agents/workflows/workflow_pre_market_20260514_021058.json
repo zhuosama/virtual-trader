@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-05-14T02:10:50.901529",
+  "workflow_type": "pre_market",
+  "steps": [
+    {
+      "step": 1,
+      "agent": "market_analyst",
+      "status": "success",
+      "output": "市场状态: 中性 | 最强板块: 消费电子 (+2.50%) | 风险信号: 2个"
+    },
+    {
+      "step": 2,
+      "agent": "execution_planner",
+      "status": "success",
+      "output": "市场状态: 中性 | 交易动作: 1个 | 风险信号: 2个 | 信心水平: 中"
+    },
+    {
+      "step": 3,
+      "agent": "risk_controller",
+      "status": "success",
+      "output": "决策: 需要修改 | 检查项目: 4个 | 警告: 2个"
+    }
+  ],
+  "final_output": "📊 虚拟盘盘前分析\n────────────────────────\n📅 日期: 2026-05-14 (Thursday)\n⏰ 时间: 02:10 北京时间\n\n🔍 市场概览\n• 市场状态: 中性 ➡️\n• 最强板块: 消费电子 (+2.50%)\n• 风险信号: 2个 ⚠️\n\n⚠️ 风险审查: 需要修改 ⚠️\n• main账户前3大持仓占比60.9%超过限制50.0%\n• lab账户前3大持仓占比85.5%超过限制50.0%\n\n🎯 今日目标: 修改交易计划后重新审查\n────────────────────────",
+  "status": "success"
+}

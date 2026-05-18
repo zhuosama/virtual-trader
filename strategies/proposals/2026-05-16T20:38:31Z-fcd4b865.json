@@ -1,0 +1,50 @@
+{
+  "proposal_id": "2026-05-16T20:38:31Z-fcd4b865",
+  "proposed_at": "2026-05-16T20:38:31.740634+00:00",
+  "proposer": "strategy_maintainer",
+  "account": "main",
+  "change_type": "strategy",
+  "current_version": "1.0.5",
+  "proposed_version": "1.0.5.pending",
+  "diff": [
+    {
+      "path": "main_strategy.parameters.max_single_position",
+      "old": 0.1,
+      "new": 0.08
+    },
+    {
+      "path": "main_strategy.parameters.max_single_position",
+      "old": 0.1,
+      "new": 0.08
+    }
+  ],
+  "triggering_events": [
+    {
+      "reason": "防止仓位超限"
+    },
+    {
+      "reason": "防止仓位超限"
+    }
+  ],
+  "rationale": "防止仓位超限; 防止仓位超限",
+  "_raw_adjustments": [
+    {
+      "type": "parameter_adjustment",
+      "strategy": "main",
+      "parameter": "max_single_position",
+      "old_value": 0.1,
+      "new_value": 0.08,
+      "reason": "防止仓位超限",
+      "confidence": "medium"
+    },
+    {
+      "type": "parameter_adjustment",
+      "strategy": "main",
+      "parameter": "max_single_position",
+      "old_value": 0.1,
+      "new_value": 0.08,
+      "reason": "防止仓位超限",
+      "confidence": "medium"
+    }
+  ]
+}

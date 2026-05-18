@@ -174,5 +174,14 @@
     "hs300_pct": -1.12,
     "main_beat": true,
     "lab_beat": true
+  },
+  {
+    "date": "2026-05-18",
+    "main_pct": -0.22,
+    "lab_pct": 0.07,
+    "hs300_pct": -0.54,
+    "benchmark_source": "tencent_api",
+    "main_beat": true,
+    "lab_beat": true
   }
 ]

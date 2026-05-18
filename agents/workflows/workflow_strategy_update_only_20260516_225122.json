@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-05-16T22:51:22.890269",
+  "workflow_type": "strategy_update_only",
+  "status": "success",
+  "performance_analysis": {
+    "timestamp": "2026-05-16T22:51:22.889467",
+    "performance_issues": [
+      {
+        "issue": "仓位超限",
+        "description": "main账户格力电器仓位12.9%超过限制10.0%",
+        "severity": "high"
+      },
+      {
+        "issue": "仓位超限",
+        "description": "lab账户汇川技术仓位24.3%超过限制20.0%",
+        "severity": "high"
+      }
+    ],
+    "parameter_suggestions": [],
+    "rule_suggestions": [],
+    "confidence": "medium"
+  },
+  "adjustments": [],
+  "apply_result": {
+    "applied_adjustments": [],
+    "failed_adjustments": [],
+    "changelog_entries": [],
+    "audit_decision": "NO_CHANGES",
+    "audit_reason": "no strategy adjustments proposed"
+  },
+  "summary": "绩效问题: 2个 | 信心: 中"
+}

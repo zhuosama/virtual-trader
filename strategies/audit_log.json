@@ -1,1 +1,245 @@
-[]
+[
+  {
+    "proposal_id": "2026-05-15T13:31:41Z-a027e477",
+    "audited_at": "2026-05-15T13:31:41.200868+00:00",
+    "decision": "PENDING_RETRY",
+    "reason": "3/3 reviewer 出现 infra 错误，下个 cron tick 重试",
+    "verdicts": {
+      "overfitting": {
+        "verdict": "INFRA_ERROR",
+        "error_type": "unknown_exception",
+        "attempt_count": 1,
+        "last_error_at": "2026-05-15T13:31:41.199260+00:00",
+        "raw_response_excerpt": "'NoneType' object has no attribute 'call'"
+      },
+      "risk": {
+        "verdict": "INFRA_ERROR",
+        "error_type": "unknown_exception",
+        "attempt_count": 1,
+        "last_error_at": "2026-05-15T13:31:41.199727+00:00",
+        "raw_response_excerpt": "'NoneType' object has no attribute 'call'"
+      },
+      "cost_execution": {
+        "verdict": "INFRA_ERROR",
+        "error_type": "unknown_exception",
+        "attempt_count": 1,
+        "last_error_at": "2026-05-15T13:31:41.200858+00:00",
+        "raw_response_excerpt": "'NoneType' object has no attribute 'call'"
+      }
+    },
+    "oos_backtest_summary": {
+      "status": "INFRA_ERROR",
+      "reason": "OOS_IMPORT_FAILED",
+      "error": "No module named 'backtest'"
+    }
+  },
+  {
+    "proposal_id": "2026-05-16T20:38:31Z-fcd4b865",
+    "audited_at": "2026-05-16T20:38:32.353443+00:00",
+    "decision": "PENDING_RETRY",
+    "reason": "3/3 reviewer 出现 infra 错误，下个 cron tick 重试",
+    "verdicts": {
+      "overfitting": {
+        "verdict": "INFRA_ERROR",
+        "error_type": "malformed_json",
+        "attempt_count": 2,
+        "last_error_at": "2026-05-16T20:38:32.299972+00:00",
+        "raw_response_excerpt": "[LLM Error: Expecting value: line 1 column 1 (char 0)]"
+      },
+      "risk": {
+        "verdict": "INFRA_ERROR",
+        "error_type": "malformed_json",
+        "attempt_count": 2,
+        "last_error_at": "2026-05-16T20:38:32.324719+00:00",
+        "raw_response_excerpt": "[LLM Error: Expecting value: line 1 column 1 (char 0)]"
+      },
+      "cost_execution": {
+        "verdict": "INFRA_ERROR",
+        "error_type": "malformed_json",
+        "attempt_count": 2,
+        "last_error_at": "2026-05-16T20:38:32.353395+00:00",
+        "raw_response_excerpt": "[LLM Error: Expecting value: line 1 column 1 (char 0)]"
+      }
+    },
+    "oos_backtest_summary": {
+      "status": "INFRA_ERROR",
+      "reason": "INSUFFICIENT_OOS_DAYS",
+      "start": "2026-04-27",
+      "end": "2026-05-15",
+      "trading_days": 15,
+      "basis_entry_date": "2026-04-24"
+    }
+  },
+  {
+    "proposal_id": "2026-05-16T20:38:31Z-fcd4b865",
+    "audited_at": "2026-05-16T20:46:53.902320+00:00",
+    "decision": "AUTO_REJECT",
+    "reason": "2/3 substantive reject",
+    "verdicts": {
+      "overfitting": {
+        "verdict": "REJECT",
+        "in_scope": true,
+        "devil_advocate_points": [
+          "triggering_events仅有两个且内容完全相同('防止仓位超限')，缺乏多样化的触发信号，极易陷入单事件过拟合",
+          "max_single_position在24天前(2026-04-22)已经由0.1下调至0.08，现提议再次同方向下调，60天内同一参数同向重复调整，表明策略参数未收敛、存在拉锯风险",
+          "oos_backtest返回INSUFFICIENT_OOS_DAYS，无有效OOS对比数据，无法用Sharpe或最大回撤阈值评估调整的稳健性，修改可能基于噪声而非信号",
+          "proposal的diff数组包含两条完全相同的参数变更条目，可能暴露自动化生成缺陷或审核流程错误，增加不必要的混淆风险"
+        ],
+        "hard_reject_hits": [
+          "triggering_events <= 2",
+          "60d_same_direction"
+        ],
+        "specific_evidence": [
+          {
+            "ref": "changelog entry 2026-04-22 (account: main, change_type: strategy, description: '调整参数: max_single_position 0.1 -> 0.08')",
+            "obs": "同一参数max_single_position在24天内再次以相同方向(减小)从0.1调整至0.08，触发60天内同方向重复调整规则"
+          },
+          {
+            "ref": "proposal.triggering_events",
+            "obs": "触发事件列表长度=2，且两项均为'防止仓位超限'，未提供新信息或差异化理由"
+          },
+          {
+            "ref": "oos_backtest.status=INFRA_ERROR, reason=INSUFFICIENT_OOS_DAYS",
+            "obs": "OOS窗口交易天数仅15天，基础设施返回error，无法进行current vs proposed的Sharpe/DD对比"
+          }
+        ]
+      },
+      "risk": {
+        "verdict": "CONCERNS",
+        "devil_advocate_points": [
+          "Proposal diff 包含两个完全相同的变更条目，疑似生成错误，直接应用可能导致版本状态异常或意外副作用。",
+          "理由仅为“防止仓位超限”，但当前组合中并无持仓超出原有 10% 上限的紧迫风险，且无数据证明 10%→8% 的必要性，论证严重不足，违反审慎调整原则。",
+          "若立即将单笔上限收紧至 8%，当前格力电器（12.9% 占比）将立即违规，可能被迫减仓并产生冲击成本与额外亏损，proposal 却未给出任何过渡或豁免方案。",
+          "过度降低仓位上限会压缩策略资金效率，在回撤恢复期可能因仓位不足而难以收复失地，反而放大长期尾部风险。"
+        ],
+        "hard_reject_hits": [],
+        "specific_evidence": [
+          {
+            "ref": "risk-rules.md:通用规则",
+            "obs": "风控参数（或影响风控的策略参数）调整须记录理由并经过充分论证，本 proposal 的 rationale 仅为重复“防止仓位超限”，未提供任何定量依据或情景分析，不符合规则精神。"
+          }
+        ]
+      },
+      "cost_execution": {
+        "verdict": "APPROVE",
+        "devil_advocate_points": [
+          "Proposal 含重复 diff 条目（同一参数变更出现两次），暗示自动化生成未做去重，虽然语义无害但降低 proposal 严肃性",
+          "当前持仓 格力电器(000651) 占比 12.9%，已超过拟调整后的 8% 上限，proposal 未说明如何处理存量超限持仓——是强制卖出还是豁免存量？这会产生额外交易成本",
+          "仅凭 'medium' confidence 就收紧仓位上限，无回测证据支持风险收益改善；收紧上限会压缩高确信度标的的 alpha 捕获空间",
+          "触发理由 '防止仓位超限' 过于模糊——最近30天无任何持仓超过10%（格力电器12.9%是最接近的），未说明是什么具体事件驱动此变更"
+        ],
+        "hard_reject_hits": [],
+        "specific_evidence": [
+          {
+            "ref": "trades/2026-04-21.json",
+            "obs": "lab 账户因 宁德时代 仓位超限(28.8%>20%) 纪律性卖出100股，说明仓位超限规则在 lab 已有执行先例，main 账户收紧到8%有对齐参考价值"
+          },
+          {
+            "ref": "current_account.positions[4] (格力电器)",
+            "obs": "当前持仓3200股，占比12.9%已超新上限8%，proposal 未附带强制减仓计划，存在规则与执行脱节风险"
+          },
+          {
+            "ref": "trades/2026-05-08.json",
+            "obs": "main 账户近期以时间止损卖出为主（中国神华、中国平安），无流动性失败记录，proposal 不触发流动性硬拒绝"
+          },
+          {
+            "ref": "current_account (整体)",
+            "obs": "主账户总仓位仅32.6%，远低于50%目标线，收紧单票上限在此低仓位环境下实际影响有限，风险可控"
+          }
+        ]
+      }
+    },
+    "oos_backtest_summary": {
+      "status": "INFRA_ERROR",
+      "reason": "INSUFFICIENT_OOS_DAYS",
+      "start": "2026-04-27",
+      "end": "2026-05-15",
+      "trading_days": 15,
+      "basis_entry_date": "2026-04-24"
+    }
+  },
+  {
+    "proposal_id": "2026-05-16T20:46:53Z-74412970",
+    "audited_at": "2026-05-16T20:50:15.095727+00:00",
+    "decision": "AUTO_REJECT",
+    "reason": "3/3 substantive reject",
+    "verdicts": {
+      "overfitting": {
+        "verdict": "REJECT",
+        "in_scope": true,
+        "devil_advocate_points": [
+          "triggering_events 仅有2条且完全重复（'防止仓位超限' x2），实质是单一观察伪装成多事件，典型的单信号过拟合",
+          "同一参数 max_single_position 在24天前（4/22）已从0.1降至0.08，现在再次提议相同变更——要么上次变更未生效（系统bug），要么在来回拉锯没收敛",
+          "OOS backtest 返回 INFRA_ERROR（INSUFFICIENT_OOS_DAYS，仅15个交易日），完全无法用样本外数据验证此变更的Sharpe和DD影响，盲目调整参数风险极高",
+          "diff数组存在完全重复条目（两条相同的max_single_position 0.1→0.08），说明proposal生成流程缺少去重，信号质量存疑",
+          "changelog中4/22 entry的actual_effect显示'格力电器11.1%仍在8%限制内'——问题不在参数阈值而在执行纪律，收紧参数治标不治本"
+        ],
+        "hard_reject_hits": [
+          "triggering_events <= 2 (实际仅2条且为重复)",
+          "60d_same_direction: max_single_position 2026-04-22已从0.1→0.08，2026-05-16再次0.1→0.08，同参数同方向24天内二次修改"
+        ],
+        "specific_evidence": [
+          {
+            "ref": "triggering_events",
+            "obs": "len=2，两条reason均为'防止仓位超限'，去重后仅1个独立事件"
+          },
+          {
+            "ref": "changelog:2026-04-22:max_single_position",
+            "obs": "24天前同一参数已做完全相同调整(0.1→0.08)，且actual_effect确认'格力电器11.1%仍在8%限制内'——说明当前策略版本已包含此参数"
+          },
+          {
+            "ref": "oos_backtest",
+            "obs": "status=INFRA_ERROR, reason=INSUFFICIENT_OOS_DAYS, 仅15个交易日(需≥30)，无法评估Sharpe退化或DD恶化"
+          },
+          {
+            "ref": "proposal.diff",
+            "obs": "数组含2条完全相同的变更记录，疑似去重缺陷"
+          }
+        ]
+      },
+      "risk": {
+        "verdict": "CONCERNS",
+        "devil_advocate_points": [
+          "将 max_single_position 从 10% 下调至 8% 会直接导致现有格力电器仓位（12.9%）严重超标，若策略强制减仓，可能产生不必要的交易成本、滑点损失，并打乱原有持仓结构。",
+          "提案未附带任何回测或压力测试数据，无法评估低仓位上限对策略收益、资金利用率和夏普比率的影响，存在过度压制风险偏好而损害长期回报的可能。",
+          "diff 中出现两条完全相同的参数变更条目，暗示提交流程或版本控制可能存在错误，若该参数在代码中被多次应用或误解，可能引发预期外风控行为。",
+          "当前主账户回撤仅 0.78%，尚处健康区间，此时主动收紧风控参数可能使策略在后续反弹中错失合理加仓机会，逆向降低组合弹性。"
+        ],
+        "hard_reject_hits": [],
+        "specific_evidence": [
+          {
+            "ref": "risk-rules.md: 主账户·单笔最大仓位 总资产 10%",
+            "obs": "当前格力电器仓位占总资产比例已达 12.9%，已超过规则上限；提案将上限进一步压缩至 8%，使超标幅度扩大，且未说明如何处理现有超标持仓，可能引发强制减仓风险。"
+          }
+        ]
+      },
+      "cost_execution": {
+        "verdict": "CONCERNS",
+        "devil_advocate_points": [
+          "降低 max_single_position 从 10% 至 8% 缺乏回测与风险归因支持：当前主账户最大回撤仅 0.78%，且近期 trade 记录中唯一一次因仓位超限减持（2026-04-20 茅台）主因是基本面重大利空而非机械超限触发，说明 10% 限制未造成实质风险",
+          "该调整将立即迫使账户卖出格力电器（当前仓位 12.9%）、美的集团（7.86%）等盈利持仓以合规，产生约 0.1-0.2% 的冲击成本与印花税，且这些标的仍处于盈利趋势中，强制减仓会损害策略的收益潜力",
+          "提案 diff 中重复两次相同参数变更，且 rationale 仅写“防止仓位超限”，未提供任何定量依据（如 VaR 改善、压力测试结果），过程仓促，可能是对近期市场波动的过度反应"
+        ],
+        "hard_reject_hits": [],
+        "specific_evidence": [
+          {
+            "ref": "trades/2026-04-20.json",
+            "obs": "主账户减持茅台因公司上市首亏重大利空及仓位超 10% 风控线，但核心驱动是基本面事件，并非 10% 限制本身造成风险；此次减持后账户未再出现仓位超限报警，证明 10% 是可接受的"
+          },
+          {
+            "ref": "current_account",
+            "obs": "持仓格力电器（12.9%）、美的集团（7.86%）均处于浮盈，若强制执行 8% 上限，约需卖出 4.9% 净值的格力电器，产生约 50-100 元摩擦成本，且放弃后续上涨弹性"
+          }
+        ]
+      }
+    },
+    "oos_backtest_summary": {
+      "status": "INFRA_ERROR",
+      "reason": "INSUFFICIENT_OOS_DAYS",
+      "start": "2026-04-27",
+      "end": "2026-05-15",
+      "trading_days": 15,
+      "basis_entry_date": "2026-04-24"
+    }
+  }
+]

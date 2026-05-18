@@ -1,0 +1,161 @@
+{
+  "timestamp": "2026-05-18T09:30:53.625604",
+  "workflow_type": "post_market",
+  "steps": [
+    {
+      "step": 0,
+      "agent": "settlement",
+      "status": "success",
+      "output": "主账户: 996,630 | 实验: 318,813"
+    },
+    {
+      "step": 1,
+      "agent": "review_agent",
+      "status": "success",
+      "output": "日期: 2026-05-18 | 📉 main: -2,242元 | 📈 lab: +229元 | 错误: 2个 | 失败: 2个"
+    },
+    {
+      "step": 2,
+      "agent": "strategy_maintainer",
+      "status": "success",
+      "output": "绩效问题: 2个 | 信心: 中",
+      "audit_decision": "NO_CHANGES"
+    }
+  ],
+  "final_output": "✅ 自动处置\n  • 2 条待处理风控减仓已自动执行\n  • 1 条风控减仓已自动执行\n\n✅ 自动风控执行\n  • main账户 卖出 格力电器 (000651): 800股 @ 39.71元\n     到账: 31,726元 | 原因: 仓位12.9%超过10%限制\n  • lab账户 卖出 汇川技术 (300124): 200股 @ 77.36元\n     到账: 15,451元 | 原因: 仓位24.3%超过20%限制\n  • main账户 卖出 招商银行 (600036): 800股 @ 37.47元\n     到账: 29,936元 | 原因: 持有21天无收益，超过时间止损20天\n\n📊 虚拟盘盘后复盘\n────────────────────────\n📅 日期: 2026-05-18 (Monday)\n⏰ 时间: 09:30 北京时间\n\n💰 今日绩效\n• main账户: -0.22%\n• lab账户: +0.07%\n• HS300: -0.54%\n\n📊 当前账户\n• 主账户: 996,548元 | 仓位 26.2% | 持仓 5只\n• 实验账户: 318,792元 | 仓位 27.4% | 持仓 2只\n\n🔄 今日交易\n• 自动风控交易: 3笔\n• 账本一致性: 7/7 PASS\n────────────────────────",
+  "status": "success",
+  "warnings": [],
+  "settlement": {
+    "main_value": 996629.71,
+    "main_pnl": -2242.0,
+    "lab_value": 318813.18,
+    "lab_pnl": 229.0,
+    "performance_updated": true,
+    "accounts_updated": true,
+    "ledger_validation": {
+      "status": "pass",
+      "failures": [],
+      "results": [
+        {
+          "inv": "INV-1",
+          "status": "PASS",
+          "msg": "all 22 trade dates have perf entry"
+        },
+        {
+          "inv": "INV-2",
+          "status": "PASS",
+          "msg": "all 22 trade dates have daily report"
+        },
+        {
+          "inv": "INV-3",
+          "status": "PASS",
+          "msg": "perf/trade/report all consistent"
+        },
+        {
+          "inv": "INV-4",
+          "status": "PASS",
+          "msg": "all 23 entries have valid benchmark"
+        },
+        {
+          "inv": "INV-5",
+          "status": "PASS",
+          "msg": "no duplicates in 23 entries"
+        },
+        {
+          "inv": "INV-6",
+          "status": "PASS",
+          "msg": "coverage 100% (23/23 dates)"
+        }
+      ]
+    },
+    "ledger_validation_passed": true
+  },
+  "pending_risk_action_execution": {
+    "executed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "ok": true,
+        "action_id": "risk-20260516-main-000651-risk_reduction-sell",
+        "account": "main",
+        "code": "000651",
+        "executed_shares": 800,
+        "price": 39.71,
+        "net_amount": 31726.06,
+        "realized_pnl": 1761.82,
+        "trade_record_path": "/Users/zhuosama/.hermes/virtual-trader/trades/2026-05/2026-05-18.json"
+      },
+      {
+        "ok": true,
+        "action_id": "risk-20260516-lab-300124-risk_reduction-sell",
+        "account": "lab",
+        "code": "300124",
+        "executed_shares": 200,
+        "price": 77.36,
+        "net_amount": 15451.22,
+        "realized_pnl": 1237.22,
+        "trade_record_path": "/Users/zhuosama/.hermes/virtual-trader/trades/2026-05/2026-05-18.json"
+      }
+    ]
+  },
+  "risk_reduction_actions": [
+    {
+      "account": "main",
+      "action": "sell",
+      "code": "600036",
+      "name": "招商银行",
+      "reason": "持有21天无收益，超过时间止损20天",
+      "holding_days": 21,
+      "time_stop_days": 20,
+      "unrealized_pnl_pct": -4.38,
+      "type": "time_stop",
+      "auto_execute": true,
+      "current_shares": 800,
+      "sell_shares": 800,
+      "lot_size": 100,
+      "price": 37.47
+    }
+  ],
+  "risk_action_execution": {
+    "executed": 1,
+    "failed": 0,
+    "results": [
+      {
+        "ok": true,
+        "action_id": "risk-20260518-main-600036-time_stop-sell",
+        "account": "main",
+        "code": "600036",
+        "executed_shares": 800,
+        "price": 37.47,
+        "net_amount": 29936.43,
+        "realized_pnl": -1412.93,
+        "trade_record_path": "/Users/zhuosama/.hermes/virtual-trader/trades/2026-05/2026-05-18.json"
+      }
+    ],
+    "queued": {
+      "added": 0,
+      "existing_open": 0,
+      "total_open": 0
+    }
+  },
+  "risk_action_queue": {
+    "added": 0,
+    "existing_open": 0,
+    "total_open": 0
+  },
+  "status_correction": {
+    "corrected_at": "2026-05-18T14:27:53.580086",
+    "old_status": "degraded",
+    "old_warnings": [
+      "2 个风控问题待处理",
+      "2 条待处理风控减仓已自动执行",
+      "1 条风控减仓已自动执行"
+    ],
+    "reason": "auto risk executions completed successfully; old workflow output treated handled risk actions as pending warnings"
+  },
+  "events": [
+    "2 条待处理风控减仓已自动执行",
+    "1 条风控减仓已自动执行"
+  ]
+}
