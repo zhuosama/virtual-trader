@@ -84,11 +84,47 @@ def strip_workflow_fields(d: dict) -> dict:
     return {k: v for k, v in d.items() if k not in WORKFLOW_EXCLUDE}
 
 
+def redact_local_paths(text) -> str:
+    """Return a compact diagnostic string without local filesystem paths."""
+    value = str(text)
+    value = value.replace(str(VTRADER_HOME), "<VTRADER_HOME>")
+    value = re.sub(r"/Users/[^\s,;:)]+", "<LOCAL_PATH>", value)
+    return value
+
+
+def normalize_list_field(value):
+    """Normalize strategy history/list fields for browser templates."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("["):
+            try:
+                decoded = json.loads(stripped)
+            except json.JSONDecodeError:
+                decoded = None
+            if isinstance(decoded, list):
+                return decoded
+        delimiter = "→" if "→" in value else "\n"
+        return [part.strip() for part in value.split(delimiter) if part.strip()]
+    return [value]
+
+
 def normalize_version(version):
     text = str(version)
     if text == "n/a" or text.startswith("v"):
         return text
     return f"v{text}"
+
+
+def iter_strategy_keys(raw: dict):
+    """Prefer canonical strategy keys; legacy keys are fallback only."""
+    canonical = ("main_strategy", "lab_strategy")
+    if any(key in raw for key in canonical):
+        return canonical
+    return ("main", "lab")
 
 
 def json_for_script(data) -> str:
@@ -127,7 +163,7 @@ def get_accounts():
             continue
         data = load_json(f)
         if data:
-            result.append(mask_sensitive(data))
+            result.append(normalize_account_for_console(mask_sensitive(data)))
     return result
 
 
@@ -141,8 +177,23 @@ def get_account(account_id: str):
             continue
         data = load_json(f)
         if data and data.get("id") == account_id:
-            return mask_sensitive(data)
+            return normalize_account_for_console(mask_sensitive(data))
     return None
+
+
+def normalize_account_for_console(account: dict) -> dict:
+    """Add stable aliases consumed by local console templates."""
+    normalized = dict(account)
+    positions = []
+    for pos in normalized.get("positions", []) or []:
+        item = dict(pos)
+        if item.get("pnl_pct") is None and item.get("unrealized_pnl_pct") is not None:
+            item["pnl_pct"] = item.get("unrealized_pnl_pct")
+        if item.get("pnl") is None and item.get("unrealized_pnl") is not None:
+            item["pnl"] = item.get("unrealized_pnl")
+        positions.append(item)
+    normalized["positions"] = positions
+    return normalized
 
 
 def get_strategies():
@@ -152,7 +203,7 @@ def get_strategies():
     if not raw:
         return []
     result = []
-    for key in ("main_strategy", "lab_strategy", "main", "lab"):
+    for key in iter_strategy_keys(raw):
         if key in raw:
             s = raw[key]
             account = "main" if "main" in key else "lab"
@@ -165,8 +216,8 @@ def get_strategies():
                 "status": "active",
                 "rules": s.get("rules", {}),
                 "parameters": s.get("parameters", {}),
-                "iteration_history": s.get("iteration_history", []),
-                "learned_lessons": s.get("learned_lessons", []),
+                "iteration_history": normalize_list_field(s.get("iteration_history", [])),
+                "learned_lessons": normalize_list_field(s.get("learned_lessons", [])),
             })
     return result
 
@@ -210,6 +261,12 @@ def get_workflows():
                      "agent", "task", "account", "trigger"):
             if key in data:
                 meta[key] = data[key]
+        warnings = normalize_list_field(data.get("warnings", []))
+        events = normalize_list_field(data.get("events", []))
+        meta["warningCount"] = len(warnings)
+        meta["eventCount"] = len(events)
+        meta["warningSummary"] = [redact_local_paths(w) for w in warnings[:3]]
+        meta["eventSummary"] = [redact_local_paths(e) for e in events[:3]]
         result.append(strip_workflow_fields(meta))
     return result
 
@@ -357,7 +414,7 @@ def get_summary():
     strategies = []
     raw = load_json(VTRADER_HOME / "strategies" / "active.json")
     if raw:
-        for key in ("main_strategy", "lab_strategy", "main", "lab"):
+        for key in iter_strategy_keys(raw):
             if key in raw:
                 s = raw[key]
                 account = "main" if "main" in key else "lab"
@@ -467,7 +524,7 @@ class ConsoleHandler(BaseHTTPRequestHandler):
         if path == "/favicon.ico":
             self._no_content()
 
-        elif path == "/health":
+        elif path in {"/health", "/api/virtual-trader/health"}:
             self._json(get_health())
 
         # ---- Console pages ----
@@ -478,31 +535,38 @@ class ConsoleHandler(BaseHTTPRequestHandler):
             self._serve_template("data.html", {
                 "accounts": get_accounts(),
                 "workflows": get_workflows(),
+                "health": get_business_health(),
             }, "__DATA_JSON__")
 
         elif path == "/console/virtual-trader/strategies":
             self._serve_template("strategies.html", {
                 "strategies": get_strategies(),
+                "health": get_business_health(),
             }, "__STRATEGIES_JSON__")
 
         elif path == "/console/virtual-trader/backtests":
-            self._serve_template("backtests.html", get_backtests_payload(), "__BACKTESTS_JSON__")
+            payload = get_backtests_payload()
+            payload["health"] = get_business_health()
+            self._serve_template("backtests.html", payload, "__BACKTESTS_JSON__")
 
         elif path == "/console/virtual-trader/backtests/compare":
             qs = parse_qs(urlparse(self.path).query)
             run_ids = qs.get("runs", [""])[0].split(",")
             run_ids = [r.strip() for r in run_ids if r.strip()]
             compare_data = backtest_adapter.compare_runs(run_ids) if run_ids else {"runs": [], "rankings": {}, "privateOnly": True, "privacy": "local-private"}
+            compare_data["health"] = get_business_health()
             self._serve_template("compare.html", compare_data, "__COMPARE_JSON__")
 
         elif path == "/console/virtual-trader/export":
             preview = export_adapter.build_public_snapshot_preview()
+            preview["health"] = get_business_health()
             self._serve_template("export.html", preview, "__EXPORT_JSON__")
 
         elif re.match(r"^/console/virtual-trader/backtests/[\w-]+$", path):
             run_id = path.split("/")[-1]
             result = backtest_adapter.get_run(run_id)
             if result:
+                result["health"] = get_business_health()
                 self._serve_template("backtest-detail.html", result, "__RUN_JSON__")
             else:
                 self._html("<h1>Run not found</h1><p><a href='/console/virtual-trader/backtests'>Back to list</a></p>", 404)

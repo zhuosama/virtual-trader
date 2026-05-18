@@ -19,6 +19,10 @@
   .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
   .header nav a:hover, .header nav a.active { color: var(--ink); }
   .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .ops-strip { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 1rem; margin-bottom: 1.5rem; border: 1px solid var(--border); border-left: 3px solid var(--positive); border-radius: 6px; background: var(--surface); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+  .ops-strip.degraded { border-left-color: var(--negative); }
+  .ops-strip strong { color: var(--ink); font-weight: 600; }
+  .ops-strip .issue { color: var(--negative); }
   .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
   .section-title:first-child { margin-top: 0; }
 
@@ -77,6 +81,8 @@
 </div>
 
 <div class="main">
+  <div id="ops-strip" class="ops-strip"></div>
+
   <div class="section-title">Accounts</div>
   <div class="account-grid" id="accounts-grid"></div>
 
@@ -91,6 +97,7 @@
 <script>
 (function() {
   const data = __DATA_JSON__;
+  renderOpsStrip(data.health);
 
   // ---- Accounts ----
   const grid = document.getElementById('accounts-grid');
@@ -104,15 +111,16 @@
       let positionsHtml = '';
       if (a.positions && a.positions.length > 0) {
         const rows = a.positions.map(function(p) {
-          const pPnlClass = (p.pnl_pct || 0) >= 0 ? 'positive' : 'negative';
-          const pSign = (p.pnl_pct || 0) >= 0 ? '+' : '';
+          const posPnl = p.pnl_pct != null ? p.pnl_pct : p.unrealized_pnl_pct;
+          const pPnlClass = (posPnl || 0) >= 0 ? 'positive' : 'negative';
+          const pSign = (posPnl || 0) >= 0 ? '+' : '';
           return '<tr>' +
             '<td class="code">' + (p.code || p.stock_code || '—') + '</td>' +
             '<td>' + (p.name || '—') + '</td>' +
             '<td class="num">' + (p.shares || p.quantity || '—') + '</td>' +
             '<td class="num">' + (p.avg_cost || p.cost_price ? Number(p.avg_cost || p.cost_price).toFixed(2) : '—') + '</td>' +
             '<td class="num">' + (p.current_price ? Number(p.current_price).toFixed(2) : '—') + '</td>' +
-            '<td class="num ' + pPnlClass + '">' + (p.pnl_pct != null ? pSign + Number(p.pnl_pct).toFixed(2) + '%' : '—') + '</td>' +
+            '<td class="num ' + pPnlClass + '">' + (posPnl != null ? pSign + Number(posPnl).toFixed(2) + '%' : '—') + '</td>' +
           '</tr>';
         }).join('');
 
@@ -148,18 +156,63 @@
     const rows = data.workflows.map(function(w) {
       const modDate = w.modified ? new Date(w.modified).toLocaleString('zh-CN') : '—';
       const sizeKb = w.size_bytes ? (w.size_bytes / 1024).toFixed(1) + ' KB' : '—';
+      const diagnostics = formatWorkflowDiagnostics(w);
       return '<tr>' +
-        '<td class="filename">' + (w.filename || '—') + '</td>' +
-        '<td class="meta">' + (w.workflow_type || w.type || '—') + '</td>' +
+        '<td class="filename">' + escapeHtml(w.filename || '—') + '</td>' +
+        '<td class="meta">' + escapeHtml(w.workflow_type || w.type || '—') + '</td>' +
         '<td class="meta">' + modDate + '</td>' +
         '<td class="meta">' + sizeKb + '</td>' +
-        '<td><span class="status">' + (w.status || '—') + '</span></td>' +
+        '<td><span class="status">' + escapeHtml(w.status || '—') + '</span></td>' +
+        '<td class="meta">' + diagnostics + '</td>' +
       '</tr>';
     }).join('');
 
     wfContainer.innerHTML = '<table class="workflow-table">' +
-      '<thead><tr><th>Filename</th><th>Type</th><th>Modified</th><th>Size</th><th>Status</th></tr></thead>' +
+      '<thead><tr><th>Filename</th><th>Type</th><th>Modified</th><th>Size</th><th>Status</th><th>Diagnostics</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderOpsStrip(health) {
+    var el = document.getElementById('ops-strip');
+    if (!el) return;
+    health = health || {};
+    var status = health.status || 'unknown';
+    var latest = health.latestWorkflow || {};
+    var ledger = health.ledger || {};
+    var issues = health.issues || [];
+    el.className = 'ops-strip ' + (status === 'degraded' ? 'degraded' : '');
+    el.innerHTML =
+      '<span><strong>Health</strong> ' + escapeHtml(status) + '</span>' +
+      '<span><strong>Latest</strong> ' + escapeHtml((latest.workflow_type || latest.type || '—') + '/' + (latest.status || '—')) + '</span>' +
+      '<span><strong>Ledger</strong> ' + escapeHtml(ledger.passed ? 'PASS' : '—') + '</span>' +
+      '<span><strong>Risk</strong> ' + escapeHtml(health.pendingRiskActions || 0) + '</span>' +
+      '<span><strong>Audit</strong> ' + escapeHtml(health.pendingAuditRetries || 0) + '</span>' +
+      '<span class="issue"><strong>Issues</strong> ' + escapeHtml(issues.length ? issues.join('; ') : 'none') + '</span>';
+  }
+
+  function formatWorkflowDiagnostics(w) {
+    var parts = [];
+    if (w.warningCount) {
+      parts.push('warnings: ' + w.warningCount + summarize(w.warningSummary));
+    }
+    if (w.eventCount) {
+      parts.push('events: ' + w.eventCount + summarize(w.eventSummary));
+    }
+    if (w.status === 'degraded' && parts.length === 0) {
+      parts.push('no diagnostic data');
+    }
+    return parts.length ? escapeHtml(parts.join(' | ')) : '—';
+  }
+
+  function summarize(items) {
+    if (!items || !items.length) return '';
+    return ' · ' + items.join(' / ');
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(s == null ? '' : String(s)));
+    return div.innerHTML;
   }
 })();
 </script>

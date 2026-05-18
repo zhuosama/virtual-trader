@@ -160,6 +160,106 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertEqual(workflows[0]["filename"], "workflow_post_market_20260525_153000.json")
         self.assertEqual(workflows[-1]["filename"], "workflow_post_market_20260506_153000.json")
 
+    def test_workflow_list_includes_safe_warning_and_event_summary(self):
+        self._write_json("agents/workflows/workflow_post_market_20260518_153000.json", {
+            "workflow_type": "post_market",
+            "status": "degraded",
+            "warnings": [
+                "审计层 INFRA_ERROR，待重试",
+                "private path /Users/zhuosama/.hermes/virtual-trader/accounts/main.json",
+            ],
+            "events": ["1 条风控减仓已自动执行"],
+            "final_output": "private report should be stripped",
+        })
+
+        workflows = self.server.get_workflows()
+
+        self.assertEqual(workflows[0]["warningCount"], 2)
+        self.assertEqual(workflows[0]["eventCount"], 1)
+        self.assertIn("INFRA_ERROR", workflows[0]["warningSummary"][0])
+        self.assertIn("风控减仓", workflows[0]["eventSummary"][0])
+        self.assertNotIn("final_output", workflows[0])
+        self.assertNotIn("/Users/zhuosama", str(workflows[0]))
+
+    def test_get_accounts_adds_position_pnl_pct_from_unrealized_field(self):
+        self._write_json("accounts/main.json", {
+            "id": "main",
+            "positions": [{
+                "code": "000651",
+                "name": "格力电器",
+                "unrealized_pnl_pct": 6.01,
+            }],
+        })
+
+        accounts = self.server.get_accounts()
+
+        self.assertEqual(accounts[0]["positions"][0]["pnl_pct"], 6.01)
+
+    def test_get_accounts_preserves_explicit_zero_position_pnl(self):
+        self._write_json("accounts/main.json", {
+            "id": "main",
+            "positions": [{
+                "code": "000651",
+                "pnl_pct": 0.0,
+                "pnl": 0,
+                "unrealized_pnl_pct": 6.01,
+                "unrealized_pnl": 100,
+            }],
+        })
+
+        accounts = self.server.get_accounts()
+
+        self.assertEqual(accounts[0]["positions"][0]["pnl_pct"], 0.0)
+        self.assertEqual(accounts[0]["positions"][0]["pnl"], 0)
+
+    def test_get_strategies_normalizes_iteration_history_to_list(self):
+        self._write_json("strategies/active.json", {
+            "main_strategy": {
+                "name": "Main",
+                "version": "1.0.5",
+                "iteration_history": "v1.0.0→v1.0.1(底仓建仓)→v1.0.2(风控)",
+            },
+            "lab_strategy": {
+                "name": "Lab",
+                "version": "1.0.6",
+                "iteration_history": ["v1.0.0", "v1.0.1"],
+            },
+        })
+
+        strategies = self.server.get_strategies()
+
+        self.assertEqual(strategies[0]["iteration_history"], ["v1.0.0", "v1.0.1(底仓建仓)", "v1.0.2(风控)"])
+        self.assertEqual(strategies[1]["iteration_history"], ["v1.0.0", "v1.0.1"])
+
+    def test_get_strategies_normalizes_json_encoded_iteration_history(self):
+        self._write_json("strategies/active.json", {
+            "main_strategy": {
+                "name": "Main",
+                "version": "1.0.5",
+                "iteration_history": "[\"v1.0.0\", \"v1.0.1\"]",
+                "learned_lessons": "[\"lesson one\", \"lesson two\"]",
+            },
+        })
+
+        strategies = self.server.get_strategies()
+
+        self.assertEqual(strategies[0]["iteration_history"], ["v1.0.0", "v1.0.1"])
+        self.assertEqual(strategies[0]["learned_lessons"], ["lesson one", "lesson two"])
+
+    def test_get_strategies_prefers_canonical_keys_without_duplicates(self):
+        self._write_json("strategies/active.json", {
+            "main_strategy": {"name": "Main Canonical", "version": "1.0.5"},
+            "lab_strategy": {"name": "Lab Canonical", "version": "1.0.6"},
+            "main": {"name": "Main Legacy", "version": "0.9.0"},
+            "lab": {"name": "Lab Legacy", "version": "0.9.1"},
+        })
+
+        strategies = self.server.get_strategies()
+        summary = self.server.get_summary()
+
+        self.assertEqual([s["id"] for s in strategies], ["main-v1.0.5", "lab-v1.0.6"])
+        self.assertEqual([s["version"] for s in summary["strategies"]], ["v1.0.5", "v1.0.6"])
+
     def test_backtests_payload_uses_active_strategy_versions(self):
         self._write_json("strategies/active.json", {
             "main_strategy": {"name": "Main Next", "version": "2.0.0"},
@@ -246,6 +346,19 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertEqual(captured["data"]["path"], "/missing")
         self.assertNotIn("secret", str(captured["data"]))
 
+    def test_api_virtual_trader_health_alias_returns_health(self):
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/api/virtual-trader/health"
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            handler.do_GET()
+
+        self.assertEqual(captured["status"], 200)
+        self.assertTrue(captured["data"]["ok"])
+        self.assertEqual(captured["data"]["status"], "healthy")
+
     def test_summary_does_not_expose_absolute_vtrader_home(self):
         summary = self.server.get_summary()
 
@@ -286,6 +399,36 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertEqual(captured["status"], 200)
         self.assertNotIn("</script><script>alert(1)</script>", captured["html"])
         self.assertIn("\\u003c/script\\u003e", captured["html"])
+
+    def test_management_templates_include_operational_health_strip(self):
+        for template_name in ("data.html", "strategies.html", "backtests.html", "export.html"):
+            html = (self.server.TEMPLATES_DIR / template_name).read_text(encoding="utf-8")
+            self.assertIn("ops-strip", html, template_name)
+            self.assertIn("renderOpsStrip", html, template_name)
+
+    def test_management_routes_inject_business_health_payload(self):
+        expected_health = {"status": "degraded", "issues": ["test issue"]}
+
+        for path in (
+            "/console/virtual-trader/data",
+            "/console/virtual-trader/strategies",
+            "/console/virtual-trader/backtests",
+            "/console/virtual-trader/export",
+        ):
+            handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+            handler.path = path
+            captured = {}
+            handler._serve_template = lambda template, data, placeholder: captured.update({
+                "template": template,
+                "data": data,
+                "placeholder": placeholder,
+            })
+
+            with patch.object(self.server, "get_business_health", return_value=expected_health), \
+                    patch.object(self.server.export_adapter, "build_public_snapshot_preview", return_value={"ok": True, "snapshot": {}}):
+                handler.do_GET()
+
+            self.assertEqual(captured["data"]["health"], expected_health, path)
 
     def test_mask_sensitive_masks_scalar_lists_under_sensitive_key(self):
         masked = self.server.mask_sensitive({"api_keys": ["live-key", "sandbox-key"]})

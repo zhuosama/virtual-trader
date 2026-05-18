@@ -19,6 +19,10 @@
   .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
   .header nav a:hover, .header nav a.active { color: var(--ink); }
   .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .ops-strip { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 1rem; margin-bottom: 1.5rem; border: 1px solid var(--border); border-left: 3px solid var(--positive); border-radius: 6px; background: var(--surface); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+  .ops-strip.degraded { border-left-color: var(--negative); }
+  .ops-strip strong { color: var(--ink); font-weight: 600; }
+  .ops-strip .issue { color: var(--negative); }
   .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
   .section-title:first-child { margin-top: 0; }
 
@@ -84,6 +88,8 @@
 </div>
 
 <div class="main">
+  <div id="ops-strip" class="ops-strip"></div>
+
   <div class="section-title">Create backtest</div>
   <div class="form-card">
     <div id="status-msg" class="status-msg"></div>
@@ -129,6 +135,7 @@
 	const CONSOLE_NONCE = '__CONSOLE_NONCE__';
 	(function() {
 	  var payload = __BACKTESTS_JSON__;
+	  renderOpsStrip(payload.health);
 	  renderStrategyOptions(payload.strategies || []);
 	  renderRuns(payload.runs || []);
 	})();
@@ -303,6 +310,24 @@ function showDetail(runId) {
 function closeDetail() {
   document.getElementById('detail-panel').className = 'detail-panel';
 }
+
+	function renderOpsStrip(health) {
+	  var el = document.getElementById('ops-strip');
+	  if (!el) return;
+	  health = health || {};
+	  var status = health.status || 'unknown';
+	  var latest = health.latestWorkflow || {};
+	  var ledger = health.ledger || {};
+	  var issues = health.issues || [];
+	  el.className = 'ops-strip ' + (status === 'degraded' ? 'degraded' : '');
+	  el.innerHTML =
+	    '<span><strong>Health</strong> ' + escapeHtml(status) + '</span>' +
+	    '<span><strong>Latest</strong> ' + escapeHtml((latest.workflow_type || latest.type || '—') + '/' + (latest.status || '—')) + '</span>' +
+	    '<span><strong>Ledger</strong> ' + escapeHtml(ledger.passed ? 'PASS' : '—') + '</span>' +
+	    '<span><strong>Risk</strong> ' + escapeHtml(health.pendingRiskActions || 0) + '</span>' +
+	    '<span><strong>Audit</strong> ' + escapeHtml(health.pendingAuditRetries || 0) + '</span>' +
+	    '<span class="issue"><strong>Issues</strong> ' + escapeHtml(issues.length ? issues.join('; ') : 'none') + '</span>';
+	}
 
 	function metric(label, value) {
 	  return '<div class="detail-metric"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value != null ? value : '—') + '</div></div>';

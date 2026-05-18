@@ -19,6 +19,10 @@
   .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
   .header nav a:hover, .header nav a.active { color: var(--ink); }
   .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .ops-strip { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 1rem; margin-bottom: 1.5rem; border: 1px solid var(--border); border-left: 3px solid var(--positive); border-radius: 6px; background: var(--surface); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+  .ops-strip.degraded { border-left-color: var(--negative); }
+  .ops-strip strong { color: var(--ink); font-weight: 600; }
+  .ops-strip .issue { color: var(--negative); }
   .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
   .section-title:first-child { margin-top: 0; }
 
@@ -80,6 +84,8 @@
 </div>
 
 <div class="main">
+  <div id="ops-strip" class="ops-strip"></div>
+
   <div class="section-title">Strategy register</div>
   <div class="strategy-grid" id="strategy-grid"></div>
   <div class="footer">
@@ -91,6 +97,7 @@
 (function() {
   const data = __STRATEGIES_JSON__;
   const grid = document.getElementById('strategy-grid');
+  renderOpsStrip(data.health);
 
   if (!data.strategies || data.strategies.length === 0) {
     grid.innerHTML = '<p class="empty">No strategies found.</p>';
@@ -122,8 +129,9 @@
 
     // Iteration history
     let historyHtml = '';
-    if (s.iteration_history && s.iteration_history.length > 0) {
-      const items = s.iteration_history.map(function(h) {
+    const history = asList(s.iteration_history);
+    if (history.length > 0) {
+      const items = history.map(function(h) {
         if (typeof h === 'string') return '<li>' + escapeHtml(h) + '</li>';
         return '<li>' + escapeHtml(JSON.stringify(h)) + '</li>';
       }).join('');
@@ -132,8 +140,9 @@
 
     // Lessons
     let lessonsHtml = '';
-    if (s.learned_lessons && s.learned_lessons.length > 0) {
-      const items = s.learned_lessons.map(function(l) {
+    const lessons = asList(s.learned_lessons);
+    if (lessons.length > 0) {
+      const items = lessons.map(function(l) {
         return '<li>' + escapeHtml(typeof l === 'string' ? l : JSON.stringify(l)) + '</li>';
       }).join('');
       lessonsHtml = renderSection('Learned Lessons', '<ul class="lessons-list">' + items + '</ul>');
@@ -164,9 +173,46 @@
     '</div>';
   }
 
+  function renderOpsStrip(health) {
+    var el = document.getElementById('ops-strip');
+    if (!el) return;
+    health = health || {};
+    var status = health.status || 'unknown';
+    var latest = health.latestWorkflow || {};
+    var ledger = health.ledger || {};
+    var issues = health.issues || [];
+    el.className = 'ops-strip ' + (status === 'degraded' ? 'degraded' : '');
+    el.innerHTML =
+      '<span><strong>Health</strong> ' + escapeHtml(status) + '</span>' +
+      '<span><strong>Latest</strong> ' + escapeHtml((latest.workflow_type || latest.type || '—') + '/' + (latest.status || '—')) + '</span>' +
+      '<span><strong>Ledger</strong> ' + escapeHtml(ledger.passed ? 'PASS' : '—') + '</span>' +
+      '<span><strong>Risk</strong> ' + escapeHtml(health.pendingRiskActions || 0) + '</span>' +
+      '<span><strong>Audit</strong> ' + escapeHtml(health.pendingAuditRetries || 0) + '</span>' +
+      '<span class="issue"><strong>Issues</strong> ' + escapeHtml(issues.length ? issues.join('; ') : 'none') + '</span>';
+  }
+
+  function asList(value) {
+    if (value == null) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.charAt(0) === '[') {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {
+          // Fall through to delimiter parsing for malformed historical data.
+        }
+      }
+      const delimiter = value.indexOf('→') >= 0 ? '→' : '\n';
+      return value.split(delimiter).map(function(part) { return part.trim(); }).filter(Boolean);
+    }
+    return [value];
+  }
+
   function escapeHtml(s) {
     var div = document.createElement('div');
-    div.appendChild(document.createTextNode(s));
+    div.appendChild(document.createTextNode(s == null ? '' : String(s)));
     return div.innerHTML;
   }
 })();
