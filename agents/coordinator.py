@@ -934,6 +934,22 @@ class MultiAgentCoordinator:
                 'output': update_report.get('summary', ''),
                 'audit_decision': audit_decision,
             })
+
+            # Risk reductions write trade/account files after settlement. Re-run
+            # ledger validation so the persisted workflow reflects the final
+            # ledger state, not the pre-risk-execution settlement snapshot.
+            if self._collect_risk_execution_results(workflow_result):
+                try:
+                    final_validation = self._run_ledger_validation(strict=False)
+                    workflow_result['final_ledger_validation'] = final_validation
+                    workflow_result['final_ledger_validation_passed'] = final_validation.get('status') == 'pass'
+                    if not workflow_result['final_ledger_validation_passed']:
+                        failed_invs = ", ".join(r.get('inv', '') for r in final_validation.get('failures', []))
+                        workflow_result['warnings'].append(f"最终账本校验失败: {failed_invs}")
+                except Exception as e:
+                    workflow_result['final_ledger_validation'] = {"status": "error", "error": str(e), "failures": []}
+                    workflow_result['final_ledger_validation_passed'] = False
+                    workflow_result['warnings'].append(f"最终账本校验异常: {e}")
             
             # 最终状态判定
             if workflow_result['warnings']:

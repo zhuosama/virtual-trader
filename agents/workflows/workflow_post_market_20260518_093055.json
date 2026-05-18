@@ -157,5 +157,49 @@
   "events": [
     "2 条待处理风控减仓已自动执行",
     "1 条风控减仓已自动执行"
-  ]
+  ],
+  "final_ledger_validation": {
+    "status": "pass",
+    "failures": [],
+    "results": [
+      {
+        "inv": "INV-1",
+        "status": "PASS",
+        "msg": "all 23 trade dates have perf entry"
+      },
+      {
+        "inv": "INV-2",
+        "status": "PASS",
+        "msg": "all 23 trade dates have daily report"
+      },
+      {
+        "inv": "INV-3",
+        "status": "PASS",
+        "msg": "perf/trade/report all consistent"
+      },
+      {
+        "inv": "INV-4",
+        "status": "PASS",
+        "msg": "all 23 entries have valid benchmark"
+      },
+      {
+        "inv": "INV-5",
+        "status": "PASS",
+        "msg": "no duplicates in 23 entries"
+      },
+      {
+        "inv": "INV-6",
+        "status": "PASS",
+        "msg": "coverage 100% (23/23 dates)"
+      },
+      {
+        "inv": "INV-7",
+        "status": "PASS",
+        "msg": "accounts aligned for 2026-05-18"
+      }
+    ],
+    "corrected_at": "2026-05-18T23:08:30+02:00",
+    "reason": "post-risk-execution final ledger validation; settlement.ledger_validation was captured before auto risk trades were appended"
+  },
+  "final_ledger_validation_passed": true
 }

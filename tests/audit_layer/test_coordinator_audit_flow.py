@@ -288,6 +288,35 @@ class TestCoordinatorAuditFlow(unittest.TestCase):
         self.assertIn("格力电器 (000651)", result["final_output"])
         self.assertNotIn("今日无交易", result["final_output"])
 
+    def test_post_market_runs_final_ledger_validation_after_auto_risk_execution(self):
+        tmpdir = tempfile.mkdtemp()
+        c = self._coordinator_for_post_market(tmpdir)
+        c.agents["risk_controller"] = FakeRiskControllerExecutableActions()
+        c._is_trading_day = MagicMock(return_value=True)
+        c._execute_risk_action = MagicMock(return_value={
+            "ok": True,
+            "action_id": "risk-20260516-main-000651-risk_reduction-sell",
+            "account": "main",
+            "code": "000651",
+            "name": "格力电器",
+            "executed_shares": 800,
+            "price": 39.71,
+            "net_amount": 31768,
+        })
+        c._run_ledger_validation = MagicMock(return_value={
+            "status": "pass",
+            "failures": [],
+            "results": [
+                {"inv": "INV-1", "status": "PASS", "msg": "all 23 trade dates have perf entry"},
+            ],
+        })
+
+        result = c.run_post_market_workflow()
+
+        c._run_ledger_validation.assert_called_once_with(strict=False)
+        self.assertTrue(result["final_ledger_validation_passed"])
+        self.assertEqual(result["final_ledger_validation"]["results"][0]["msg"], "all 23 trade dates have perf entry")
+
     def test_post_market_queues_auto_risk_actions_on_non_trading_day(self):
         tmpdir = tempfile.mkdtemp()
         c = self._coordinator_for_post_market(tmpdir)
