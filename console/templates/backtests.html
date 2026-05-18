@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backtest Center · Hermes Console</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --border: #2a2d3e;
+    --ink: #e8e9ed; --muted: #6b7089; --accent: #4f8ff7;
+    --positive: #326d36; --negative: #c0392b;
+    --mono: 'SF Mono','Cascadia Code','Consolas', monospace;
+    --sans: -apple-system,'Segoe UI', system-ui, sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); line-height: 1.6; min-height: 100vh; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
+  .header nav a:hover, .header nav a.active { color: var(--ink); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
+  .section-title:first-child { margin-top: 0; }
+
+  /* Form */
+  .form-card { border: 1px solid var(--border); border-top: 2px solid var(--accent); border-radius: 6px; background: var(--surface); padding: 1.5rem; margin-bottom: 2rem; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .form-field label { display: block; font-family: var(--mono); font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: .25rem; }
+  .form-field input, .form-field select { width: 100%; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--ink); font-family: var(--mono); font-size: .85rem; }
+  .form-field input:focus, .form-field select:focus { outline: none; border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem 1.25rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: .85rem; font-weight: 600; cursor: pointer; transition: border-color .14s, background .14s; }
+  .btn:hover { border-color: var(--ink); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #3a7ae6; }
+
+  /* Status */
+  .status-msg { padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1rem; font-size: .85rem; display: none; }
+  .status-msg.running { display: block; background: rgba(79,143,247,.1); border: 1px solid var(--accent); color: var(--accent); }
+  .status-msg.success { display: block; background: rgba(50,109,54,.1); border: 1px solid var(--positive); color: var(--positive); }
+  .status-msg.error { display: block; background: rgba(192,57,43,.1); border: 1px solid var(--negative); color: var(--negative); }
+
+  /* Runs table */
+  .runs-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .runs-table th { font-family: var(--mono); font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .5rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .runs-table td { padding: .5rem; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: .8rem; }
+  .runs-table tr:hover td { background: rgba(79,143,247,.04); }
+  .runs-table .run-id { color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-color: transparent; transition: text-decoration-color .14s; }
+  .runs-table .run-id:hover { text-decoration-color: var(--accent); }
+  .runs-table .num { text-align: right; }
+  .runs-table input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+  .positive { color: var(--positive); }
+  .negative { color: var(--negative); }
+  .status-badge { font-family: var(--mono); font-size: .7rem; padding: .0625rem .375rem; border: 1px solid var(--border); border-radius: 3px; text-transform: uppercase; letter-spacing: .04em; }
+  .status-badge.completed { color: var(--positive); border-color: var(--positive); }
+  .status-badge.failed { color: var(--negative); border-color: var(--negative); }
+  .status-badge.running { color: var(--accent); border-color: var(--accent); }
+
+  /* Detail panel */
+  .detail-panel { display: none; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 1.5rem; margin-top: 1.5rem; }
+  .detail-panel.open { display: block; }
+  .detail-panel h3 { font-size: .9rem; font-weight: 600; margin-bottom: 1rem; }
+  .detail-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+  .detail-metric { padding: .5rem; border: 1px solid var(--border); border-radius: 4px; }
+  .detail-metric .label { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .detail-metric .value { font-family: var(--mono); font-size: 1rem; font-weight: 700; }
+  .detail-close { float: right; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.2rem; }
+  .detail-close:hover { color: var(--ink); }
+
+  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: .7rem; color: var(--muted); text-align: center; }
+  .empty { color: var(--muted); font-size: .85rem; padding: 1rem 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Console · Backtest Center</h1>
+  <nav>
+    <a href="/console/virtual-trader">Home</a>
+    <a href="/console/virtual-trader/data">Data</a>
+    <a href="/console/virtual-trader/strategies">Strategies</a>
+    <a href="/console/virtual-trader/backtests" class="active">Backtests</a>
+  </nav>
+</div>
+
+<div class="main">
+  <div class="section-title">Create backtest</div>
+  <div class="form-card">
+    <div id="status-msg" class="status-msg"></div>
+	    <div class="form-grid">
+	      <div class="form-field">
+	        <label>Strategy</label>
+	        <select id="f-strategy">
+	        </select>
+	      </div>
+      <div class="form-field">
+        <label>Start Date</label>
+        <input type="date" id="f-start" value="2026-04-13">
+      </div>
+      <div class="form-field">
+        <label>End Date</label>
+        <input type="date" id="f-end" value="2026-05-07">
+      </div>
+      <div class="form-field">
+        <label>Benchmark</label>
+        <select id="f-benchmark">
+          <option value="hs300">沪深300</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn primary" id="btn-run" onclick="runBacktest()">Run Backtest</button>
+  </div>
+
+  <div class="section-title">Run history</div>
+  <div id="compare-toolbar" style="display:none;margin-bottom:1rem;padding:.5rem .75rem;border:1px solid var(--accent);border-radius:4px;background:rgba(79,143,247,.06);font-size:.8rem;align-items:center;gap:1rem">
+    <span id="compare-count" style="color:var(--muted)">0 selected</span>
+    <button class="btn primary" id="btn-compare" onclick="compareSelected()" disabled style="font-size:.8rem;padding:.35rem 1rem">Compare selected</button>
+  </div>
+  <div id="runs-container"></div>
+
+  <div id="detail-panel" class="detail-panel"></div>
+
+  <div class="footer">
+    Backtest Center · results saved to backtest/runs/ · 127.0.0.1 only
+  </div>
+</div>
+
+	<script>
+	const CONSOLE_NONCE = '__CONSOLE_NONCE__';
+	(function() {
+	  var payload = __BACKTESTS_JSON__;
+	  renderStrategyOptions(payload.strategies || []);
+	  renderRuns(payload.runs || []);
+	})();
+
+	function renderStrategyOptions(strategies) {
+	  var select = document.getElementById('f-strategy');
+	  if (!strategies.length) {
+	    select.innerHTML = '<option value="">No active strategies</option>';
+	    return;
+	  }
+	  select.innerHTML = strategies.map(function(s) {
+	    return '<option value="' + escapeAttr(s.id || '') + '">' + escapeHtml(s.label || s.id || 'Strategy') + '</option>';
+	  }).join('');
+	}
+
+	function renderRuns(runs) {
+	  var container = document.getElementById('runs-container');
+	  var toolbar = document.getElementById('compare-toolbar');
+  if (!runs || runs.length === 0) {
+    container.innerHTML = '<p class="empty">No backtest runs yet.</p>';
+    toolbar.style.display = 'none';
+    return;
+  }
+  toolbar.style.display = 'flex';
+	  var rows = runs.map(function(r) {
+	    var retClass = (r.cumulativeReturnPct || 0) >= 0 ? 'positive' : 'negative';
+	    var sign = (r.cumulativeReturnPct || 0) >= 0 ? '+' : '';
+	    var exClass = (r.excessReturnPct || 0) >= 0 ? 'positive' : 'negative';
+	    var exSign = (r.excessReturnPct || 0) >= 0 ? '+' : '';
+	    var created = r.createdAt ? new Date(r.createdAt).toLocaleString('zh-CN') : '—';
+	    var disabled = r.status !== 'completed' ? ' disabled' : '';
+	    var runIdAttr = escapeAttr(r.runId || '');
+	    var statusClass = cssToken(r.status || '');
+	    return '<tr>' +
+	      '<td><input type="checkbox" class="run-cb" data-runid="' + runIdAttr + '"' + disabled + ' onchange="updateCompareBtn()"></td>' +
+	      '<td><span class="run-id" data-runid="' + runIdAttr + '" onclick="showDetail(this.dataset.runid)">' + escapeHtml(r.runId || '—') + '</span></td>' +
+	      '<td><span class="status-badge ' + statusClass + '">' + escapeHtml(r.status || '—') + '</span></td>' +
+	      '<td>' + escapeHtml(r.strategyId || '—') + '</td>' +
+	      '<td>' + escapeHtml((r.startDate || '—') + ' → ' + (r.endDate || '—')) + '</td>' +
+	      '<td class="num ' + retClass + '">' + (r.cumulativeReturnPct != null ? sign + r.cumulativeReturnPct.toFixed(2) + '%' : '—') + '</td>' +
+	      '<td class="num">' + (r.maxDrawdownPct != null ? r.maxDrawdownPct.toFixed(2) + '%' : '—') + '</td>' +
+	      '<td class="num">' + (r.winRatePct != null ? r.winRatePct.toFixed(0) + '%' : '—') + '</td>' +
+	      '<td class="num">' + (r.tradeCount || '—') + '</td>' +
+	      '<td class="num ' + exClass + '">' + (r.excessReturnPct != null ? exSign + r.excessReturnPct.toFixed(2) + '%' : '—') + '</td>' +
+	      '<td class="meta">' + escapeHtml(created) + '</td>' +
+	      '<td><a href="/console/virtual-trader/backtests/' + encodeURIComponent(r.runId || '') + '" style="color:var(--accent);text-decoration:none;font-size:.75rem">View →</a></td>' +
+	    '</tr>';
+	  }).join('');
+
+  container.innerHTML = '<table class="runs-table">' +
+    '<thead><tr><th style="width:2rem"></th><th>Run ID</th><th>Status</th><th>Strategy</th><th>Period</th><th>Return</th><th>MaxDD</th><th>Win%</th><th>Trades</th><th>Excess</th><th>Created</th><th>Action</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>';
+}
+
+function updateCompareBtn() {
+  var checked = document.querySelectorAll('.run-cb:checked');
+  var count = checked.length;
+  document.getElementById('compare-count').textContent = count + ' selected';
+  document.getElementById('btn-compare').disabled = count < 2;
+}
+
+function compareSelected() {
+  var checked = document.querySelectorAll('.run-cb:checked');
+  var ids = [];
+  checked.forEach(function(cb) { ids.push(cb.getAttribute('data-runid')); });
+  if (ids.length < 2) return;
+  window.location.href = '/console/virtual-trader/backtests/compare?runs=' + ids.join(',');
+}
+
+function runBacktest() {
+  var btn = document.getElementById('btn-run');
+  var msg = document.getElementById('status-msg');
+  btn.disabled = true;
+  msg.className = 'status-msg running';
+  msg.textContent = 'Running backtest...';
+
+  var body = {
+    strategyId: document.getElementById('f-strategy').value,
+    startDate: document.getElementById('f-start').value,
+    endDate: document.getElementById('f-end').value,
+    benchmark: document.getElementById('f-benchmark').value,
+    initialCapitalMode: 'demo-normalized'
+  };
+
+	  fetch('/api/virtual-trader/backtests', {
+	    method: 'POST',
+	    headers: {'Content-Type': 'application/json', 'X-Hermes-Console-Nonce': CONSOLE_NONCE},
+	    body: JSON.stringify(body)
+	  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    btn.disabled = false;
+    if (data.status === 'completed') {
+      msg.className = 'status-msg success';
+      msg.textContent = 'Backtest completed: ' + data.runId + ' — Return ' + (data.cumulativeReturnPct >= 0 ? '+' : '') + data.cumulativeReturnPct.toFixed(2) + '%';
+      // Reload page to show new run
+      setTimeout(function() { location.reload(); }, 1500);
+    } else {
+      msg.className = 'status-msg error';
+      msg.textContent = 'Backtest failed: ' + (data.error || 'unknown error');
+    }
+  })
+  .catch(function(err) {
+    btn.disabled = false;
+    msg.className = 'status-msg error';
+    msg.textContent = 'Request failed: ' + err.message;
+  });
+}
+
+function showDetail(runId) {
+  var panel = document.getElementById('detail-panel');
+  panel.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  panel.className = 'detail-panel open';
+
+	  fetch('/api/virtual-trader/backtests/' + encodeURIComponent(runId))
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    var retClass = (d.cumulativeReturnPct || 0) >= 0 ? 'positive' : 'negative';
+    var exClass = (d.excessReturnPct || 0) >= 0 ? 'positive' : 'negative';
+
+	    var html = '<button class="detail-close" onclick="closeDetail()">✕</button>' +
+	      '<h3>Run: ' + escapeHtml(d.runId) + '</h3>' +
+	      '<div class="detail-metrics">' +
+      metric('Status', d.status) +
+      metric('Strategy', d.strategyId) +
+      metric('Period', d.startDate + ' → ' + d.endDate) +
+      metric('Benchmark', d.benchmark) +
+      metricClass('Return', fmt(d.cumulativeReturnPct, '%'), retClass) +
+      metricClass('Excess', fmt(d.excessReturnPct, '%'), exClass) +
+      metric('Max Drawdown', fmt(d.maxDrawdownPct, '%')) +
+      metric('Win Rate', fmt(d.winRatePct, '%')) +
+      metric('Trade Count', d.tradeCount) +
+      metric('Sharpe', fmt(d.sharpeRatio, '')) +
+      metric('Profit Factor', fmt(d.profitFactor, '')) +
+      metric('Total Fees', d.totalFees ? d.totalFees.toFixed(0) : '—') +
+      '</div>';
+
+    // Trade summary
+	    if (d.tradeSummary && d.tradeSummary.length > 0) {
+	      html += '<div style="margin-top:1rem"><strong style="font-size:.8rem">Closed Trades (' + d.tradeSummary.length + ')</strong></div>';
+      html += '<table class="runs-table" style="margin-top:.5rem"><thead><tr>' +
+        '<th>Date</th><th>Code</th><th>Name</th><th>Cost</th><th>Sell</th><th>Shares</th><th>P&L</th></tr></thead><tbody>';
+	      d.tradeSummary.forEach(function(t) {
+	        var tClass = t.pnl >= 0 ? 'positive' : 'negative';
+	        html += '<tr><td>' + escapeHtml(t.date) + '</td><td>' + escapeHtml(t.code) + '</td><td>' + escapeHtml(t.name) + '</td>' +
+	          '<td class="num">' + fmtRaw(t.cost) + '</td><td class="num">' + fmtRaw(t.sellPrice) + '</td>' +
+	          '<td class="num">' + escapeHtml(t.shares) + '</td><td class="num ' + tClass + '">' + fmtSignedRaw(t.pnl) + '</td></tr>';
+	      });
+      html += '</tbody></table>';
+    }
+
+    // Error
+    if (d.error) {
+      html += '<div style="margin-top:1rem;padding:.75rem;border:1px solid var(--negative);border-radius:4px;color:var(--negative);font-size:.85rem"><strong>Error:</strong> ' + escapeHtml(d.error) + '</div>';
+    }
+
+    // Report text (private-only)
+    if (d.reportText) {
+      html += '<div style="margin-top:1.5rem">';
+      html += '<div style="padding:.5rem .75rem;margin-bottom:.5rem;border:1px solid var(--negative);border-radius:4px;color:var(--negative);font-size:.75rem;font-family:var(--mono)">⚠ Local private detail — never exported publicly</div>';
+      html += '<pre style="padding:1rem;border:1px solid var(--border);border-radius:4px;background:var(--bg);font-size:.75rem;font-family:var(--mono);overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto">' + escapeHtml(d.reportText) + '</pre>';
+      html += '</div>';
+    }
+
+    panel.innerHTML = html;
+  })
+	  .catch(function(err) {
+	    panel.innerHTML = '<button class="detail-close" onclick="closeDetail()">✕</button><p style="color:var(--negative)">Failed to load: ' + escapeHtml(err.message) + '</p>';
+	  });
+	}
+
+function closeDetail() {
+  document.getElementById('detail-panel').className = 'detail-panel';
+}
+
+	function metric(label, value) {
+	  return '<div class="detail-metric"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value != null ? value : '—') + '</div></div>';
+	}
+
+	function metricClass(label, value, cls) {
+	  return '<div class="detail-metric"><div class="label">' + escapeHtml(label) + '</div><div class="value ' + cssToken(cls) + '">' + escapeHtml(value != null ? value : '—') + '</div></div>';
+	}
+
+function fmt(val, unit) {
+  if (val == null) return '—';
+  var sign = val >= 0 ? '+' : '';
+  return sign + Number(val).toFixed(2) + unit;
+}
+
+	function escapeHtml(s) {
+	  if (s == null) return '';
+	  var div = document.createElement('div');
+	  div.appendChild(document.createTextNode(String(s)));
+	  return div.innerHTML;
+	}
+
+	function escapeAttr(s) {
+	  return escapeHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	}
+
+	function cssToken(s) {
+	  return String(s || '').replace(/[^a-zA-Z0-9_-]/g, '');
+	}
+
+	function fmtRaw(val) {
+	  return Number.isFinite(Number(val)) ? Number(val).toFixed(2) : '—';
+	}
+
+	function fmtSignedRaw(val) {
+	  if (!Number.isFinite(Number(val))) return '—';
+	  return (Number(val) >= 0 ? '+' : '') + Number(val).toFixed(2);
+	}
+	</script>
+
+</body>
+</html>

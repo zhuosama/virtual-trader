@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strategy Manager · Hermes Console</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --border: #2a2d3e;
+    --ink: #e8e9ed; --muted: #6b7089; --accent: #4f8ff7;
+    --positive: #326d36; --negative: #c0392b;
+    --mono: 'SF Mono','Cascadia Code','Consolas', monospace;
+    --sans: -apple-system,'Segoe UI', system-ui, sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); line-height: 1.6; min-height: 100vh; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
+  .header nav a:hover, .header nav a.active { color: var(--ink); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
+  .section-title:first-child { margin-top: 0; }
+
+  /* Strategy cards */
+  .strategy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
+  .strategy-card { border: 1px solid var(--border); border-top: 2px solid var(--accent); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  .strategy-card .card-head { display: flex; justify-content: space-between; align-items: baseline; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--border); }
+  .strategy-card .card-head .label { font-family: var(--mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .strategy-card .card-head .version { font-family: var(--mono); font-size: .75rem; color: var(--accent); }
+  .strategy-card .card-body { padding: 1rem 1.25rem; }
+  .strategy-card h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: .25rem; }
+  .strategy-card .status-badge { display: inline-block; font-family: var(--mono); font-size: .7rem; padding: .0625rem .375rem; border: 1px solid var(--border); border-radius: 3px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .75rem; }
+  .strategy-card .status-badge.active { color: var(--positive); border-color: var(--positive); }
+  .strategy-card .description { font-size: .85rem; color: var(--muted-strong); line-height: 1.62; margin-bottom: 1rem; }
+
+  /* Detail sections */
+  .detail-section { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+  .detail-title { font-family: var(--mono); font-size: .65rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .5rem; cursor: pointer; user-select: none; }
+  .detail-title::before { content: '▸ '; }
+  .detail-title.open::before { content: '▾ '; }
+  .detail-content { display: none; }
+  .detail-content.open { display: block; }
+
+  /* Rules */
+  .rules-list { list-style: none; padding: 0; }
+  .rules-list li { padding: .375rem 0; font-size: .8rem; color: var(--ink); border-bottom: 1px solid var(--border); }
+  .rules-list li:last-child { border-bottom: none; }
+  .rules-list .rule-key { font-family: var(--mono); font-size: .75rem; color: var(--accent); }
+
+  /* Parameters */
+  .params-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .5rem; }
+  .param-item { padding: .5rem; border: 1px solid var(--border); border-radius: 4px; }
+  .param-item .key { font-family: var(--mono); font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .param-item .val { font-family: var(--mono); font-size: .85rem; font-weight: 600; }
+
+  /* Iteration history */
+  .history-list { list-style: none; padding: 0; counter-reset: history; }
+  .history-list li { padding: .5rem 0; font-size: .8rem; color: var(--ink); border-bottom: 1px solid var(--border); counter-increment: history; position: relative; padding-left: 2rem; }
+  .history-list li::before { content: counter(history); position: absolute; left: 0; font-family: var(--mono); font-size: .7rem; color: var(--muted); width: 1.5rem; text-align: right; }
+  .history-list li:last-child { border-bottom: none; }
+
+  /* Lessons */
+  .lessons-list { list-style: none; padding: 0; }
+  .lessons-list li { padding: .5rem .75rem; margin-bottom: .375rem; border-left: 2px solid var(--accent); font-size: .8rem; color: var(--ink); background: rgba(79,143,247,.04); border-radius: 0 4px 4px 0; }
+
+  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: .7rem; color: var(--muted); text-align: center; }
+  .empty { color: var(--muted); font-size: .85rem; padding: 1rem 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Console · Strategy Manager</h1>
+  <nav>
+    <a href="/console/virtual-trader">Home</a>
+    <a href="/console/virtual-trader/data">Data</a>
+    <a href="/console/virtual-trader/strategies" class="active">Strategies</a>
+  </nav>
+</div>
+
+<div class="main">
+  <div class="section-title">Strategy register</div>
+  <div class="strategy-grid" id="strategy-grid"></div>
+  <div class="footer">
+    Strategy Manager · read-only · no draft/activate · 127.0.0.1 only
+  </div>
+</div>
+
+<script>
+(function() {
+  const data = __STRATEGIES_JSON__;
+  const grid = document.getElementById('strategy-grid');
+
+  if (!data.strategies || data.strategies.length === 0) {
+    grid.innerHTML = '<p class="empty">No strategies found.</p>';
+    return;
+  }
+
+  grid.innerHTML = data.strategies.map(function(s) {
+    const code = s.account === 'main' ? 'Main' : s.account === 'lab' ? 'Lab' : s.account;
+
+    // Rules
+    let rulesHtml = '';
+    if (s.rules && Object.keys(s.rules).length > 0) {
+      const items = Object.entries(s.rules).map(function(entry) {
+        const val = typeof entry[1] === 'object' ? JSON.stringify(entry[1]) : String(entry[1]);
+        return '<li><span class="rule-key">' + entry[0] + '</span> ' + escapeHtml(val) + '</li>';
+      }).join('');
+      rulesHtml = renderSection('Rules', '<ul class="rules-list">' + items + '</ul>');
+    }
+
+    // Parameters
+    let paramsHtml = '';
+    if (s.parameters && Object.keys(s.parameters).length > 0) {
+      const items = Object.entries(s.parameters).map(function(entry) {
+        const val = typeof entry[1] === 'object' ? JSON.stringify(entry[1]) : String(entry[1]);
+        return '<div class="param-item"><div class="key">' + escapeHtml(entry[0]) + '</div><div class="val">' + escapeHtml(val) + '</div></div>';
+      }).join('');
+      paramsHtml = renderSection('Parameters', '<div class="params-grid">' + items + '</div>');
+    }
+
+    // Iteration history
+    let historyHtml = '';
+    if (s.iteration_history && s.iteration_history.length > 0) {
+      const items = s.iteration_history.map(function(h) {
+        if (typeof h === 'string') return '<li>' + escapeHtml(h) + '</li>';
+        return '<li>' + escapeHtml(JSON.stringify(h)) + '</li>';
+      }).join('');
+      historyHtml = renderSection('Iteration History', '<ol class="history-list">' + items + '</ol>');
+    }
+
+    // Lessons
+    let lessonsHtml = '';
+    if (s.learned_lessons && s.learned_lessons.length > 0) {
+      const items = s.learned_lessons.map(function(l) {
+        return '<li>' + escapeHtml(typeof l === 'string' ? l : JSON.stringify(l)) + '</li>';
+      }).join('');
+      lessonsHtml = renderSection('Learned Lessons', '<ul class="lessons-list">' + items + '</ul>');
+    }
+
+    return '<div class="strategy-card">' +
+      '<div class="card-head"><span class="label">' + code + '</span><span class="version">' + (s.version || 'n/a') + '</span></div>' +
+      '<div class="card-body">' +
+      '<h2>' + escapeHtml(s.name || 'n/a') + '</h2>' +
+      '<span class="status-badge active">' + (s.status || 'n/a') + '</span>' +
+      '<p class="description">' + escapeHtml(s.description || '') + '</p>' +
+      rulesHtml + paramsHtml + historyHtml + lessonsHtml +
+      '</div></div>';
+  }).join('');
+
+  // Toggle detail sections
+  document.querySelectorAll('.detail-title').forEach(function(el) {
+    el.addEventListener('click', function() {
+      this.classList.toggle('open');
+      this.nextElementSibling.classList.toggle('open');
+    });
+  });
+
+  function renderSection(title, content) {
+    return '<div class="detail-section">' +
+      '<div class="detail-title">' + title + '</div>' +
+      '<div class="detail-content">' + content + '</div>' +
+    '</div>';
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(s));
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>

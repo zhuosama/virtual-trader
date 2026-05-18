@@ -1,0 +1,374 @@
+import json
+import os
+import shutil
+import sys
+import tempfile
+import threading
+import time
+import unittest
+from io import BytesIO
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, os.path.join(ROOT, "console"))
+
+
+class TestConsoleHealth(unittest.TestCase):
+    def setUp(self):
+        import server
+
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+        original_home = server.VTRADER_HOME
+        self.addCleanup(setattr, server, "VTRADER_HOME", original_home)
+        if hasattr(server, "_LEDGER_HEALTH_CACHE"):
+            server._LEDGER_HEALTH_CACHE = {"root": None, "expires_at": 0, "value": None}
+        server.VTRADER_HOME = Path(self.tmpdir)
+        self.server = server
+
+    def _write_json(self, relative_path, data):
+        path = Path(self.tmpdir) / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return path
+
+    def test_health_reports_degraded_when_latest_workflow_failed(self):
+        self._write_json("agents/workflows/workflow_post_market_20260515_153000.json", {
+            "workflow_type": "post_market",
+            "status": "failed",
+            "error": "attempted relative import with no known parent package",
+        })
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        self.assertFalse(health["ok"])
+        self.assertEqual(health["status"], "degraded")
+        self.assertEqual(health["business"]["latestWorkflow"]["status"], "failed")
+        self.assertTrue(any("latest workflow failed" in issue for issue in health["business"]["issues"]))
+
+    def test_health_treats_uppercase_failed_workflow_as_degraded(self):
+        self._write_json("agents/workflows/workflow_post_market_20260515_153000.json", {
+            "workflow_type": "post_market",
+            "status": "ERROR",
+        })
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        self.assertFalse(health["ok"])
+        self.assertEqual(health["status"], "degraded")
+        self.assertTrue(any("latest workflow error" in issue for issue in health["business"]["issues"]))
+
+    def test_health_reports_pending_risk_actions_and_audit_retries(self):
+        self._write_json("actions/pending.json", [
+            {"action_id": "a1", "status": "proposed", "code": "000651", "name": "格力电器"},
+            {"action_id": "a2", "status": "acknowledged", "code": "300124", "name": "汇川技术"},
+            {"action_id": "a3", "status": "completed"},
+        ])
+        self._write_json("strategies/proposals/pending_retry/proposal-001.json", {
+            "proposal_id": "proposal-001",
+            "status": "pending_retry",
+        })
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        self.assertFalse(health["ok"])
+        self.assertEqual(health["status"], "degraded")
+        self.assertEqual(health["business"]["pendingRiskActions"], 2)
+        self.assertEqual(
+            [a["code"] for a in health["business"]["pendingRiskActionDetails"]],
+            ["000651", "300124"],
+        )
+        self.assertEqual(health["business"]["pendingAuditRetries"], 1)
+
+    def test_pending_risk_action_details_are_public_safe(self):
+        self._write_json("actions/pending.json", [
+            {
+                "action_id": "risk-1",
+                "account": "main",
+                "action": "sell",
+                "code": "000651",
+                "name": "格力电器",
+                "status": "proposed",
+                "auto_execute": True,
+                "current_pct": 0.129,
+                "target_pct": 0.1,
+                "sell_shares": 800,
+                "price": 40.28,
+                "expires_at": "2026-05-18T23:59:59",
+                "reason": "仓位12.9%超过10%限制",
+                "private_path": "/Users/zhuosama/.hermes/virtual-trader/accounts/main.json",
+            },
+            {"action_id": "risk-2", "status": "completed", "code": "000002"},
+        ])
+
+        actions = self.server.get_pending_risk_actions()
+
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0]["account"], "main")
+        self.assertEqual(actions[0]["action"], "sell")
+        self.assertEqual(actions[0]["code"], "000651")
+        self.assertEqual(actions[0]["sellShares"], 800)
+        self.assertTrue(actions[0]["autoExecute"])
+        self.assertNotIn("private_path", actions[0])
+        self.assertNotIn("/Users/", str(actions))
+
+    def test_health_reports_healthy_baseline(self):
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        self.assertTrue(health["ok"])
+        self.assertEqual(health["status"], "healthy")
+        self.assertEqual(health["business"]["issues"], [])
+
+    def test_latest_workflow_uses_modified_time_not_filename_order(self):
+        old = self._write_json("agents/workflows/workflow_weekly_review_20260516_020028.json", {
+            "workflow_type": "weekly_review",
+            "status": "degraded",
+        })
+        new = self._write_json("agents/workflows/workflow_strategy_update_only_20260516_225122.json", {
+            "workflow_type": "strategy_update_only",
+            "status": "success",
+        })
+        os.utime(old, (1000, 1000))
+        os.utime(new, (2000, 2000))
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        self.assertTrue(health["ok"])
+        self.assertEqual(
+            health["business"]["latestWorkflow"]["filename"],
+            "workflow_strategy_update_only_20260516_225122.json",
+        )
+
+    def test_workflow_list_is_bounded_to_recent_items(self):
+        for i in range(25):
+            path = self._write_json(f"agents/workflows/workflow_post_market_202605{i+1:02d}_153000.json", {
+                "workflow_type": "post_market",
+                "status": "success",
+            })
+            os.utime(path, (1000 + i, 1000 + i))
+
+        workflows = self.server.get_workflows()
+
+        self.assertEqual(len(workflows), 20)
+        self.assertEqual(workflows[0]["filename"], "workflow_post_market_20260525_153000.json")
+        self.assertEqual(workflows[-1]["filename"], "workflow_post_market_20260506_153000.json")
+
+    def test_backtests_payload_uses_active_strategy_versions(self):
+        self._write_json("strategies/active.json", {
+            "main_strategy": {"name": "Main Next", "version": "2.0.0"},
+            "lab_strategy": {"name": "Lab Next", "version": "2.1.0"},
+        })
+
+        with patch.object(self.server.backtest_adapter, "list_runs", return_value=[]):
+            payload = self.server.get_backtests_payload()
+
+        self.assertEqual(
+            [s["id"] for s in payload["strategies"]],
+            ["main-v2.0.0", "lab-v2.1.0"],
+        )
+        self.assertIn("Main Next", payload["strategies"][0]["label"])
+
+    def test_ledger_health_is_cached_between_health_calls(self):
+        validator = MagicMock()
+        validator.validate.return_value = [{"inv": "INV-1", "status": "PASS", "msg": "ok"}]
+
+        with patch.object(self.server, "LedgerValidator", return_value=validator):
+            first = self.server.get_health()
+            second = self.server.get_health()
+
+        self.assertTrue(first["business"]["ledger"]["passed"])
+        self.assertTrue(second["business"]["ledger"]["passed"])
+        self.assertEqual(validator.validate.call_count, 1)
+
+    def test_ledger_exception_is_redacted_in_health_response(self):
+        with patch.object(self.server, "LedgerValidator", side_effect=RuntimeError("/tmp/private/path failed")):
+            ledger = self.server._ledger_health(use_cache=False)
+
+        self.assertFalse(ledger["passed"])
+        self.assertEqual(ledger["error"], "validator unavailable")
+        self.assertNotIn("/tmp/private", str(ledger))
+
+    def test_ledger_failures_do_not_expose_raw_validator_messages(self):
+        validator = MagicMock()
+        validator.validate.return_value = [{
+            "inv": "INV-1",
+            "status": "FAIL",
+            "msg": "absolute path leaked: /Users/zhuosama/.hermes/virtual-trader/accounts/main.json",
+        }]
+
+        with patch.object(self.server, "LedgerValidator", return_value=validator):
+            ledger = self.server._ledger_health(use_cache=False)
+
+        self.assertFalse(ledger["passed"])
+        self.assertEqual(ledger["failures"], 1)
+        self.assertNotIn("failedResults", ledger)
+        self.assertNotIn("/Users/zhuosama", str(ledger))
+
+    def test_ledger_health_cache_is_locked_across_concurrent_calls(self):
+        validator = MagicMock()
+
+        def slow_validate():
+            time.sleep(0.05)
+            return [{"inv": "INV-1", "status": "PASS", "msg": "ok"}]
+
+        validator.validate.side_effect = slow_validate
+        results = []
+
+        with patch.object(self.server, "LedgerValidator", return_value=validator):
+            threads = [
+                threading.Thread(target=lambda: results.append(self.server._ledger_health()))
+                for _ in range(5)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(len(results), 5)
+        self.assertEqual(validator.validate.call_count, 1)
+
+    def test_not_found_response_does_not_echo_query_string(self):
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.path = "/missing?token=secret"
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        handler._not_found()
+
+        self.assertEqual(captured["status"], 404)
+        self.assertEqual(captured["data"]["path"], "/missing")
+        self.assertNotIn("secret", str(captured["data"]))
+
+    def test_summary_does_not_expose_absolute_vtrader_home(self):
+        summary = self.server.get_summary()
+
+        self.assertNotIn("vtrader_home", summary)
+        self.assertNotIn("/Users/", str(summary))
+
+    def test_summary_includes_business_health_for_home_page(self):
+        self._write_json("actions/pending.json", [
+            {"action_id": "risk-1", "status": "proposed"},
+        ])
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            summary = self.server.get_summary()
+
+        self.assertEqual(summary["health"]["status"], "degraded")
+        self.assertEqual(summary["health"]["pendingRiskActions"], 1)
+        self.assertIn("pending risk action", " ".join(summary["health"]["issues"]))
+        self.assertNotIn("/Users/", str(summary))
+
+    def test_template_json_injection_cannot_close_script_tag(self):
+        template_dir = Path(self.tmpdir) / "templates"
+        template_dir.mkdir()
+        (template_dir / "xss.html").write_text(
+            "<script>const data = __DATA_JSON__;</script>",
+            encoding="utf-8",
+        )
+
+        original_templates_dir = self.server.TEMPLATES_DIR
+        self.addCleanup(setattr, self.server, "TEMPLATES_DIR", original_templates_dir)
+        self.server.TEMPLATES_DIR = template_dir
+
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        captured = {}
+        handler._html = lambda html, status=200: captured.update({"html": html, "status": status})
+
+        handler._serve_template("xss.html", {"name": "</script><script>alert(1)</script>"}, "__DATA_JSON__")
+
+        self.assertEqual(captured["status"], 200)
+        self.assertNotIn("</script><script>alert(1)</script>", captured["html"])
+        self.assertIn("\\u003c/script\\u003e", captured["html"])
+
+    def test_mask_sensitive_masks_scalar_lists_under_sensitive_key(self):
+        masked = self.server.mask_sensitive({"api_keys": ["live-key", "sandbox-key"]})
+
+        self.assertEqual(masked["api_keys"], "***")
+        self.assertNotIn("live-key", str(masked))
+
+    def test_read_body_rejects_oversized_content_length_without_reading_stream(self):
+        class RecordingBody(BytesIO):
+            def __init__(self):
+                super().__init__(b"{}")
+                self.read_size = None
+
+            def read(self, size=-1):
+                self.read_size = size
+                return super().read(size)
+
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        body = RecordingBody()
+        handler.rfile = body
+        handler.headers = {"Content-Length": str(self.server.MAX_BODY_BYTES * 2)}
+        handler.close_connection = False
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        self.assertIsNone(handler._read_body())
+        self.assertEqual(captured["status"], 413)
+        self.assertEqual(captured["data"]["error"], "request body too large")
+        self.assertTrue(handler.close_connection)
+        self.assertIsNone(body.read_size)
+
+    def test_read_body_rejects_negative_content_length_without_reading_stream(self):
+        class RecordingBody(BytesIO):
+            def __init__(self):
+                super().__init__(b"{}")
+                self.read_size = None
+
+            def read(self, size=-1):
+                self.read_size = size
+                return super().read(size)
+
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        body = RecordingBody()
+        handler.rfile = body
+        handler.headers = {"Content-Length": "-1"}
+        handler.close_connection = False
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        self.assertIsNone(handler._read_body())
+        self.assertEqual(captured["status"], 400)
+        self.assertEqual(captured["data"]["error"], "invalid content length")
+        self.assertTrue(handler.close_connection)
+        self.assertIsNone(body.read_size)
+
+    def test_read_body_rejects_malformed_json(self):
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.rfile = BytesIO(b"{bad json")
+        handler.headers = {"Content-Length": "9"}
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        self.assertIsNone(handler._read_body())
+        self.assertEqual(captured["status"], 400)
+        self.assertEqual(captured["data"]["error"], "invalid json")
+
+    def test_write_endpoint_rejects_missing_console_nonce(self):
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.headers = {}
+        captured = {}
+        handler._json = lambda data, status=200: captured.update({"data": data, "status": status})
+
+        self.assertFalse(handler._require_console_nonce())
+        self.assertEqual(captured["status"], 403)
+        self.assertEqual(captured["data"]["error"], "console nonce required")
+
+    def test_write_endpoint_accepts_matching_console_nonce(self):
+        handler = self.server.ConsoleHandler.__new__(self.server.ConsoleHandler)
+        handler.headers = {"X-Hermes-Console-Nonce": self.server.CONSOLE_NONCE}
+        handler._json = lambda data, status=200: self.fail("valid nonce should not emit response")
+
+        self.assertTrue(handler._require_console_nonce())
+
+
+if __name__ == "__main__":
+    unittest.main()

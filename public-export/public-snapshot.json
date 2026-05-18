@@ -1,0 +1,329 @@
+{
+  "generatedAt": "2026-05-18T12:28:33.305534+00:00",
+  "source": {
+    "system": "Hermes Virtual Trader",
+    "mode": "public-aggregated-snapshot",
+    "updatedAt": "2026-05-18T12:28:33.305534+00:00"
+  },
+  "disclaimer": "Paper trading / demo data. Aggregated and anonymized for public portfolio display. Not investment advice.",
+  "accounts": {
+    "lab": {
+      "label": "实验策略账户",
+      "returnPct": 6.26,
+      "dailyReturnPct": 0.07,
+      "maxDrawdownPct": 0.0044,
+      "positionPct": 27.4,
+      "tradeCount": 14,
+      "winRatePct": 0.62,
+      "updatedAt": "2026-05-18T12:28:33.305534+00:00"
+    },
+    "main": {
+      "label": "主策略账户",
+      "returnPct": -0.35,
+      "dailyReturnPct": -0.22,
+      "maxDrawdownPct": 0.0078,
+      "positionPct": 26.2,
+      "tradeCount": 16,
+      "winRatePct": 0.25,
+      "updatedAt": "2026-05-18T12:28:33.305534+00:00"
+    }
+  },
+  "strategies": {
+    "main": {
+      "name": "价值趋势混合策略",
+      "version": "v1.0.5",
+      "description": "高ROE/股息蓝筹底仓 + MA20/60趋势择时 + 商品价格维度（三维一体）+ 建仓节奏优化"
+    },
+    "lab": {
+      "name": "板块轮动+动量突破策略",
+      "version": "v1.0.6",
+      "description": "捕捉板块轮动和动量突破机会，增加板块确认和换手率过滤，增加高弹性板块分批止盈规则"
+    }
+  },
+  "performance": [
+    {
+      "date": "2026-04-13",
+      "mainPct": -0.004,
+      "labPct": -0.016,
+      "benchmarkPct": 0.06,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-14",
+      "mainPct": 0.1288,
+      "labPct": 0.6111,
+      "benchmarkPct": 0.95,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-15",
+      "mainPct": 0.0269,
+      "labPct": 0.0358,
+      "benchmarkPct": 0.01,
+      "mainBeat": true,
+      "labBeat": true
+    },
+    {
+      "date": "2026-04-16",
+      "mainPct": 0.0126,
+      "labPct": 1.9578,
+      "benchmarkPct": 0.4,
+      "mainBeat": false,
+      "labBeat": true
+    },
+    {
+      "date": "2026-04-17",
+      "mainPct": -0.78,
+      "labPct": -0.44,
+      "benchmarkPct": -0.1,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-20",
+      "mainPct": 0.3,
+      "labPct": 0.53,
+      "benchmarkPct": 0.76,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-21",
+      "mainPct": 0.05,
+      "labPct": 0.32,
+      "benchmarkPct": 1.44,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-22",
+      "mainPct": -0.09,
+      "labPct": 0.81,
+      "benchmarkPct": 0.52,
+      "mainBeat": false,
+      "labBeat": true
+    },
+    {
+      "date": "2026-04-23",
+      "mainPct": 0.24,
+      "labPct": -0.24,
+      "benchmarkPct": -0.32,
+      "mainBeat": true,
+      "labBeat": true
+    },
+    {
+      "date": "2026-04-24",
+      "mainPct": 0.0505,
+      "labPct": 0.6585,
+      "benchmarkPct": -0.35,
+      "mainBeat": true,
+      "labBeat": true
+    },
+    {
+      "date": "2026-04-27",
+      "mainPct": -0.0145,
+      "labPct": 0.0534,
+      "benchmarkPct": 0.03,
+      "mainBeat": false,
+      "labBeat": true
+    },
+    {
+      "date": "2026-04-28",
+      "mainPct": 0.7168,
+      "labPct": -0.2753,
+      "benchmarkPct": -0.27,
+      "mainBeat": true,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-29",
+      "mainPct": 0.53,
+      "labPct": 1.08,
+      "benchmarkPct": 1.1,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-04-30",
+      "mainPct": -0.01,
+      "labPct": -0.002,
+      "benchmarkPct": -0.06,
+      "mainBeat": true,
+      "labBeat": true
+    },
+    {
+      "date": "2026-05-06",
+      "mainPct": -0.48,
+      "labPct": 1.04,
+      "benchmarkPct": 1.45,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-05-07",
+      "mainPct": -0.47,
+      "labPct": 1.48,
+      "benchmarkPct": 0.48,
+      "mainBeat": false,
+      "labBeat": true
+    },
+    {
+      "date": "2026-05-08",
+      "mainPct": -0.1,
+      "labPct": -0.86,
+      "benchmarkPct": -0.58,
+      "mainBeat": true,
+      "labBeat": false
+    },
+    {
+      "date": "2026-05-11",
+      "mainPct": 0.21,
+      "labPct": 1.61,
+      "benchmarkPct": 1.64,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-05-12",
+      "mainPct": -0.18,
+      "labPct": -1.44,
+      "benchmarkPct": -0.08,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-05-13",
+      "mainPct": -0.11,
+      "labPct": 0.36,
+      "benchmarkPct": 1.02,
+      "mainBeat": false,
+      "labBeat": false
+    },
+    {
+      "date": "2026-05-14",
+      "mainPct": -0.2,
+      "labPct": -1.71,
+      "benchmarkPct": -1.68,
+      "mainBeat": true,
+      "labBeat": false
+    },
+    {
+      "date": "2026-05-15",
+      "mainPct": 0.1,
+      "labPct": 0.74,
+      "benchmarkPct": -1.12,
+      "mainBeat": true,
+      "labBeat": true
+    },
+    {
+      "date": "2026-05-18",
+      "mainPct": -0.22,
+      "labPct": 0.07,
+      "benchmarkPct": -0.54,
+      "mainBeat": true,
+      "labBeat": true
+    }
+  ],
+  "workflows": {
+    "postMarket": {
+      "label": "盘后复盘",
+      "cadence": "交易日 15:30 BJT",
+      "latestRun": "2026-05-18T09:30:53.625604",
+      "latestArtifact": "workflow_post_market_20260518_093055.json",
+      "outputPolicy": "filename-only; workflow JSON contents are not published"
+    },
+    "preMarket": {
+      "label": "盘前分析",
+      "cadence": "交易日 08:10 BJT",
+      "latestRun": "2026-05-18T02:10:18.028632",
+      "latestArtifact": "workflow_pre_market_20260518_021028.json",
+      "outputPolicy": "filename-only; workflow JSON contents are not published"
+    },
+    "weeklyReview": {
+      "label": "周末复盘",
+      "cadence": "周六 08:00 BJT",
+      "latestRun": "2026-05-16T02:00:25.886478",
+      "latestArtifact": "workflow_weekly_review_20260516_020028.json",
+      "outputPolicy": "filename-only; workflow JSON contents are not published"
+    }
+  },
+  "agents": [
+    {
+      "id": "coordinator",
+      "name": "Coordinator",
+      "role": "工作流编排、账户快照汇总、Agent 调度"
+    },
+    {
+      "id": "market_analyst",
+      "name": "Market Analyst",
+      "role": "市场环境、板块轮动和个股输入分析"
+    },
+    {
+      "id": "execution_planner",
+      "name": "Execution Planner",
+      "role": "交易候选、仓位节奏和执行计划"
+    },
+    {
+      "id": "risk_controller",
+      "name": "Risk Controller",
+      "role": "仓位上限、回撤阈值和风险闸门"
+    },
+    {
+      "id": "review_agent",
+      "name": "Review Agent",
+      "role": "盘后归因、错误模式和盲点识别"
+    },
+    {
+      "id": "strategy_maintainer",
+      "name": "Strategy Maintainer",
+      "role": "策略版本、规则变更和经验沉淀"
+    },
+    {
+      "id": "audit_layer",
+      "name": "Audit Layer",
+      "role": "策略变更提案审核、OOS 验证和 quorum 决策"
+    }
+  ],
+  "auditLayer": {
+    "enabled": true,
+    "policy": "strategy proposals require audit_layer.review() before commit_approved() can write active.json/changelog",
+    "totalReviews": 4,
+    "latestDecision": "AUTO_REJECT",
+    "latestReviewedAt": "2026-05-16T20:50:15.095727+00:00",
+    "publicDetailPolicy": "aggregate status only; proposal ids, reviewer verdict traces, and workflow outputs are private"
+  },
+  "charts": {
+    "cumulativeReturns": "/virtual-trader/cumulative_returns.png",
+    "dailyPnl": "/virtual-trader/daily_pnl.png",
+    "drawdown": "/virtual-trader/drawdown.png",
+    "positionDistribution": "/virtual-trader/position_distribution.png"
+  },
+  "lessons": [
+    {
+      "title": "周期股不能只看量价",
+      "detail": "格力电器单日大额买入导致仓位11.2%超限，下次应分批执行"
+    },
+    {
+      "title": "现金拖累是系统问题",
+      "detail": "茅台4/15高位建仓教训：需等待更明确趋势确认"
+    },
+    {
+      "title": "main 经验 #3",
+      "detail": "底仓建仓节奏需更分散，每批间隔更长"
+    },
+    {
+      "title": "高弹性资产要分批退出",
+      "detail": "量比放宽至1.3增加了假突破风险（阳光电源案例）"
+    },
+    {
+      "title": "lab 经验 #2",
+      "detail": "量比1.4可有效过滤量能不足的假突破"
+    },
+    {
+      "title": "lab 经验 #3",
+      "detail": "trailing stop 5.5%比6%更早触发止损，减少单笔最大亏损"
+    }
+  ]
+}

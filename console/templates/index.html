@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Console · Virtual Trader</title>
+<style>
+  /* Reset */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --border: #2a2d3e;
+    --ink: #e8e9ed;
+    --muted: #6b7089;
+    --accent: #4f8ff7;
+    --positive: #326d36;
+    --negative: #c0392b;
+    --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    --sans: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .header h1 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+  }
+  .header .tag {
+    font-family: var(--mono);
+    font-size: .75rem;
+    padding: .125rem .5rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .header .tag.healthy { color: var(--positive); border-color: var(--positive); }
+  .header .tag.degraded { color: var(--negative); border-color: var(--negative); }
+  .header .tag.unknown { color: var(--muted); border-color: var(--border); }
+
+  /* Main */
+  .main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Status strip */
+  .status-strip {
+    display: flex;
+    gap: 2rem;
+    padding: .75rem 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--muted);
+  }
+  .status-strip strong { color: var(--ink); font-weight: 600; }
+
+  /* Section */
+  .section {
+    margin-top: 2rem;
+  }
+  .section-title {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    background: var(--surface);
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: .75rem;
+  }
+  .card-head .label {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card-head .version {
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: var(--accent);
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: .25rem;
+  }
+  .card .status-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: .7rem;
+    padding: .0625rem .375rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .card .status-badge.active { color: var(--positive); border-color: var(--positive); }
+
+  /* Nav cards */
+  .nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .nav-card {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    background: var(--surface);
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color .14s ease, transform .14s ease;
+  }
+  .nav-card:hover {
+    border-color: var(--ink);
+    transform: translateY(-1px);
+  }
+  .nav-card h3 {
+    font-size: .9rem;
+    font-weight: 600;
+    margin-bottom: .25rem;
+  }
+  .nav-card p {
+    font-size: .8rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .nav-card .coming-soon {
+    font-family: var(--mono);
+    font-size: .65rem;
+    color: var(--muted);
+    opacity: .6;
+    margin-top: .5rem;
+    letter-spacing: .04em;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: .7rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* Terminal strip */
+  .terminal-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: .75rem 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: .75rem;
+  }
+  .terminal-strip span { color: var(--muted); }
+  .terminal-strip strong { color: var(--ink); font-weight: 600; }
+  .risk-list {
+    display: grid;
+    gap: .75rem;
+  }
+  .risk-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .875rem 1rem;
+    background: var(--surface);
+  }
+  .risk-row h3 {
+    font-size: .9rem;
+    font-weight: 600;
+    margin-bottom: .125rem;
+  }
+  .risk-row p {
+    color: var(--muted);
+    font-size: .78rem;
+  }
+  .risk-row .amount {
+    font-family: var(--mono);
+    font-size: .9rem;
+    color: var(--negative);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Console · Virtual Trader</h1>
+  <nav style="display:flex;align-items:center;gap:1.5rem;">
+    <a href="/console/virtual-trader" style="color:var(--ink);text-decoration:none;font-size:.8rem;">Home</a>
+    <a href="/console/virtual-trader/data" style="color:var(--muted);text-decoration:none;font-size:.8rem;">Data</a>
+    <a href="/console/virtual-trader/strategies" style="color:var(--muted);text-decoration:none;font-size:.8rem;">Strategies</a>
+    <span class="tag online" id="status-badge">connecting…</span>
+  </nav>
+</div>
+
+<div class="main">
+
+  <div class="status-strip" id="status-strip">
+    <span><strong>Mode</strong> local-only</span>
+    <span><strong>Host</strong> <span id="host-name">—</span></span>
+    <span><strong>Loaded</strong> <span id="loaded-at">—</span></span>
+  </div>
+
+  <div class="section">
+    <div class="section-title">System status</div>
+    <div class="terminal-strip" id="system-info">
+      <span><strong>Service</strong> —</span>
+      <span><strong>Health</strong> —</span>
+      <span><strong>Timestamp</strong> —</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Strategy register</div>
+    <div class="card-grid" id="strategy-grid">
+      <div class="card"><p style="color:var(--muted)">Loading…</p></div>
+    </div>
+  </div>
+
+  <div class="section" id="risk-section" style="display:none;">
+    <div class="section-title">Risk actions</div>
+    <div class="risk-list" id="risk-list"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Modules</div>
+    <div class="nav-grid">
+      <a class="nav-card" href="/console/virtual-trader/data">
+        <h3>Data Manager</h3>
+        <p>查看账户快照、持仓、交易摘要和 workflow artifacts。</p>
+      </a>
+      <a class="nav-card" href="/console/virtual-trader/strategies">
+        <h3>Strategy Manager</h3>
+        <p>查看策略版本、规则、参数和迭代历史。</p>
+      </a>
+      <a class="nav-card" href="/console/virtual-trader/backtests">
+        <h3>Backtest Center</h3>
+        <p>创建回测任务、选择策略和时间范围。</p>
+      </a>
+      <a class="nav-card" href="/console/virtual-trader/export">
+        <h3>Public Export</h3>
+        <p>生成脱敏公开快照、预览和敏感字段扫描。</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="footer">
+    Hermes Local Console · T5 · 127.0.0.1 only · no public data exposed
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const summary = __SUMMARY_JSON__;
+
+  function escHtml(s) {
+    if (s == null) return '';
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(s)));
+    return div.innerHTML;
+  }
+
+  // Update status badge
+  const badge = document.getElementById('status-badge');
+  const health = summary.health || {};
+  const healthStatus = health.status || 'unknown';
+  badge.textContent = healthStatus;
+  badge.className = 'tag ' + (healthStatus === 'healthy' ? 'healthy' : healthStatus === 'degraded' ? 'degraded' : 'unknown');
+
+  // Update loaded time
+  document.getElementById('loaded-at').textContent = new Date().toLocaleTimeString();
+  document.getElementById('host-name').textContent = window.location.host;
+
+  // Update system info
+  const sysInfo = document.getElementById('system-info');
+  const issues = (health.issues || []).join('; ') || 'none';
+  sysInfo.innerHTML =
+    '<span><strong>Service</strong> ' + escHtml(summary.system) + '</span>' +
+    '<span><strong>Health</strong> ' + escHtml(healthStatus) + '</span>' +
+    '<span><strong>Issues</strong> ' + escHtml(issues) + '</span>' +
+    '<span><strong>Timestamp</strong> ' + escHtml(summary.timestamp) + '</span>';
+
+  // Update strategy grid
+  const grid = document.getElementById('strategy-grid');
+  const strategies = Array.isArray(summary.strategies) ? summary.strategies : Object.values(summary.strategies || {});
+  let html = '';
+
+  if (!strategies.length) {
+    html = '<div class="card"><p style="color:var(--muted)">No strategies found.</p></div>';
+  } else {
+    for (const s of strategies) {
+      const key = s.account || '';
+      const code = key === 'main' ? 'Main' : key === 'lab' ? 'Lab' : key || 'Strategy';
+      html += '<div class="card">' +
+        '<div class="card-head">' +
+          '<span class="label">' + escHtml(code) + '</span>' +
+          '<span class="version">' + escHtml(s.version || 'n/a') + '</span>' +
+        '</div>' +
+        '<h2>' + escHtml(s.name || 'n/a') + '</h2>' +
+        '<span class="status-badge ' + (s.status === 'active' ? 'active' : '') + '">' +
+          escHtml(s.status || 'n/a') +
+        '</span>' +
+      '</div>';
+    }
+  }
+
+  if (html) grid.innerHTML = html;
+
+  const riskSection = document.getElementById('risk-section');
+  const riskList = document.getElementById('risk-list');
+  const riskActions = Array.isArray(health.pendingRiskActionDetails) ? health.pendingRiskActionDetails : [];
+  if (riskActions.length) {
+    let riskHtml = '';
+    for (const a of riskActions) {
+      const pct = a.currentPct != null && a.targetPct != null
+        ? (Number(a.currentPct) * 100).toFixed(1) + '% → ' + (Number(a.targetPct) * 100).toFixed(1) + '%'
+        : 'limit breach';
+      riskHtml += '<div class="risk-row">' +
+        '<div>' +
+          '<h3>' + escHtml((a.name || a.code || 'Risk action') + ' · ' + (a.account || 'account')) + '</h3>' +
+          '<p>' + escHtml(pct + ' · ' + (a.reason || 'risk reduction') + ' · expires ' + (a.expiresAt || 'n/a')) + '</p>' +
+        '</div>' +
+        '<div class="amount">' + escHtml((a.action || 'sell').toUpperCase() + ' ' + (a.sellShares || 0)) + '</div>' +
+      '</div>';
+    }
+    riskList.innerHTML = riskHtml;
+    riskSection.style.display = '';
+  }
+})();
+</script>
+
+</body>
+</html>
