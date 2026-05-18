@@ -725,6 +725,7 @@ def write_public_snapshot(dry_run=False):
         "snapshotPath": SNAPSHOT_FILE,
         "schemaVersion": SCHEMA_VERSION,
         "source": "console-export-adapter",
+        "ledgerValidation": ledger,
         "scanPassed": passed,
         "findingCount": len(findings),
     }

@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import unittest
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -408,6 +409,43 @@ class TestConsoleHealth(unittest.TestCase):
         self.assertIn("pending risk action", " ".join(summary["health"]["issues"]))
         self.assertNotIn("/Users/", str(summary))
 
+    def test_health_includes_public_snapshot_freshness(self):
+        generated_at = datetime.now(timezone.utc).isoformat()
+        self._write_json("public-export/manifest.json", {
+            "generatedAt": generated_at,
+            "snapshotPath": "public-snapshot.json",
+            "schemaVersion": "1.0.0",
+            "scanPassed": True,
+        })
+        self._write_json("public-export/public-snapshot.json", {"generatedAt": generated_at})
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        public_export = health["business"]["publicExport"]
+        self.assertEqual(public_export["status"], "fresh")
+        self.assertTrue(public_export["exists"])
+        self.assertEqual(public_export["snapshotPath"], "public-export/public-snapshot.json")
+        self.assertEqual(public_export["schemaVersion"], "1.0.0")
+        self.assertIsInstance(public_export["ageSeconds"], int)
+        self.assertNotIn("/Users/", str(public_export))
+
+    def test_health_degrades_when_public_snapshot_is_stale(self):
+        self._write_json("public-export/manifest.json", {
+            "generatedAt": "2026-01-01T00:00:00+00:00",
+            "snapshotPath": "public-snapshot.json",
+            "schemaVersion": "1.0.0",
+            "scanPassed": True,
+        })
+        self._write_json("public-export/public-snapshot.json", {"generatedAt": "2026-01-01T00:00:00+00:00"})
+
+        with patch.object(self.server, "_ledger_health", return_value={"passed": True, "failures": 0}):
+            health = self.server.get_health()
+
+        self.assertFalse(health["ok"])
+        self.assertEqual(health["business"]["publicExport"]["status"], "stale")
+        self.assertIn("public snapshot stale", " ".join(health["business"]["issues"]))
+
     def test_template_json_injection_cannot_close_script_tag(self):
         template_dir = Path(self.tmpdir) / "templates"
         template_dir.mkdir()
@@ -435,6 +473,12 @@ class TestConsoleHealth(unittest.TestCase):
             html = (self.server.TEMPLATES_DIR / template_name).read_text(encoding="utf-8")
             self.assertIn("ops-strip", html, template_name)
             self.assertIn("renderOpsStrip", html, template_name)
+
+    def test_home_template_renders_public_snapshot_health(self):
+        html = (self.server.TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn("publicExport", html)
+        self.assertIn("Public Snapshot", html)
 
     def test_management_templates_escape_local_data_insertions(self):
         strategies_html = (self.server.TEMPLATES_DIR / "strategies.html").read_text(encoding="utf-8")

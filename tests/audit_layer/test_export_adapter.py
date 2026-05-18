@@ -117,6 +117,17 @@ class TestExportAdapter(unittest.TestCase):
         self.assertNotIn("/Users/", json.dumps(manifest))
         self.assertNotIn(str(self.root), json.dumps(manifest))
 
+    def test_manifest_records_ledger_gate_metadata(self):
+        result = self.adapter.write_public_snapshot(dry_run=False)
+
+        self.assertTrue(result["ok"])
+        manifest = json.loads((self.export_dir / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["ledgerValidation"], {
+            "passed": True,
+            "failures": 0,
+            "resultCount": 7,
+        })
+
     def test_write_public_snapshot_is_blocked_when_ledger_gate_fails(self):
         with patch.object(
             self.adapter,

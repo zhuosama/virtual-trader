@@ -100,6 +100,18 @@ python3 console/server.py
 - 新增任何 console POST 写入口时，必须同步调用 `append_admin_action_log(...)`
   并增加一条回归测试；否则该入口不算完成
 
+### T7: Public Snapshot Trust State (2026-05-18)
+
+- 业务健康 payload 增加 `publicExport`：
+  fresh / stale / missing / invalid、snapshot 相对路径、生成时间、ageSeconds、
+  schemaVersion、scanPassed、ledgerValidation
+- public snapshot 超过 36 小时未更新时，`/health` 降级为 degraded 并报告
+  `public snapshot stale`
+- 首页 system strip 展示 Public Snapshot 状态，避免本机后台和公开网站数据
+  新鲜度脱节
+- public export manifest 写入 ledger gate 摘要，保留该次快照对应的
+  strict ledger validation 结果
+
 ## Endpoints
 
 | Method | Path | Description |
@@ -135,10 +147,12 @@ python3 console/server.py
 - 回测结果 reportText 标记为 local-private
 - 只读调用引擎，不修改 accounts/strategies
 - `/health` 和 summary API 不返回本机绝对路径
+- `/health` 报告 public export 新鲜度，但只返回相对路径和摘要
 - POST body 有 1MiB 上限，异常长度会关闭连接
 - public export import 失败会自动回滚已写入站点文件
 - POST 写入口要求页面注入的 per-process nonce；无 nonce 返回 403
 - public export 写入前执行 `validate_ledger_consistency.py --strict`
+- public export manifest 记录该次写入使用的 ledger validation 摘要
 - POST 写操作追加本地 append-only admin action log，日志只保留摘要和相对路径
 
 ## Files
@@ -177,3 +191,4 @@ logs/
 - T4: Public Export + health hardening ✅
 - T5: Truthful Health + write guards ✅
 - T6: Admin diagnostics + action log ✅
+- T7: Public snapshot trust state ✅

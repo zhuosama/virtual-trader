@@ -327,9 +327,13 @@
   // Update system info
   const sysInfo = document.getElementById('system-info');
   const issues = (health.issues || []).join('; ') || 'none';
+  const publicExport = health.publicExport || {};
+  const publicSnapshot = (publicExport.status || 'missing') +
+    (publicExport.ageSeconds != null ? ' · ' + Math.round(publicExport.ageSeconds / 3600) + 'h old' : '');
   sysInfo.innerHTML =
     '<span><strong>Service</strong> ' + escHtml(summary.system) + '</span>' +
     '<span><strong>Health</strong> ' + escHtml(healthStatus) + '</span>' +
+    '<span><strong>Public Snapshot</strong> ' + escHtml(publicSnapshot) + '</span>' +
     '<span><strong>Issues</strong> ' + escHtml(issues) + '</span>' +
     '<span><strong>Timestamp</strong> ' + escHtml(summary.timestamp) + '</span>';
 

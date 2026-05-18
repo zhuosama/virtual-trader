@@ -122,11 +122,14 @@ The console management pages render that health strip on Data, Strategies,
 Backtests, and Export so operators do not lose system context while drilling
 into a page. Console write actions (`backtests`, `public-snapshot`,
 `import-to-site`) append sanitized summaries to `logs/admin_actions.jsonl`.
+The health payload also includes `publicExport` freshness so the console and
+website can distinguish fresh, stale, missing, and invalid public snapshots.
 
 Public export is gated by the same strict ledger validator. If
 `scripts/validate_ledger_consistency.py --strict` fails, the console export
 adapter refuses to write `public-export/public-snapshot.json`; the website must
-not publish a snapshot that the local ledger cannot reconcile.
+not publish a snapshot that the local ledger cannot reconcile. The export
+manifest records the ledger validation summary used for that write.
 
 ### LLM Configuration
 

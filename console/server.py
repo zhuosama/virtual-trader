@@ -55,6 +55,7 @@ ADMIN_LOG_EXCLUDE = frozenset({"reportText", "traceback", "dailySeries", "tradeS
 MAX_BODY_BYTES = 1 << 20
 LEDGER_HEALTH_TTL_SECONDS = 30
 WORKFLOW_LIST_LIMIT = 20
+PUBLIC_EXPORT_STALE_SECONDS = 36 * 60 * 60
 _LEDGER_HEALTH_CACHE = {"root": None, "expires_at": 0, "value": None}
 _LEDGER_HEALTH_LOCK = threading.Lock()
 _ADMIN_ACTION_LOG_LOCK = threading.Lock()
@@ -451,6 +452,73 @@ def _ledger_health(use_cache=True):
         return value
 
 
+def _parse_iso_datetime(value):
+    if not value:
+        return None
+    text = str(value)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _public_export_health():
+    manifest_path = VTRADER_HOME / "public-export" / "manifest.json"
+    if not manifest_path.exists():
+        return {
+            "exists": False,
+            "status": "missing",
+            "snapshotPath": None,
+            "generatedAt": None,
+            "ageSeconds": None,
+            "schemaVersion": None,
+            "scanPassed": None,
+        }
+
+    manifest = load_json(manifest_path)
+    if not isinstance(manifest, dict):
+        return {
+            "exists": True,
+            "status": "invalid",
+            "snapshotPath": None,
+            "generatedAt": None,
+            "ageSeconds": None,
+            "schemaVersion": None,
+            "scanPassed": None,
+        }
+
+    snapshot_name = manifest.get("snapshotPath") or "public-snapshot.json"
+    snapshot_path = manifest_path.parent / snapshot_name
+    generated_at = manifest.get("generatedAt")
+    generated_dt = _parse_iso_datetime(generated_at)
+    age_seconds = None
+    status = "fresh"
+    if not snapshot_path.exists():
+        status = "missing"
+    elif generated_dt is None:
+        status = "invalid"
+    else:
+        age_seconds = max(0, int((datetime.now(timezone.utc) - generated_dt).total_seconds()))
+        if age_seconds > PUBLIC_EXPORT_STALE_SECONDS:
+            status = "stale"
+
+    return {
+        "exists": snapshot_path.exists(),
+        "status": status,
+        "snapshotPath": public_path(snapshot_path),
+        "generatedAt": generated_at,
+        "ageSeconds": age_seconds,
+        "schemaVersion": manifest.get("schemaVersion"),
+        "scanPassed": manifest.get("scanPassed"),
+        "ledgerValidation": manifest.get("ledgerValidation"),
+    }
+
+
 def get_business_health():
     """Business-level health for the local console gateway."""
     issues = []
@@ -473,6 +541,12 @@ def get_business_health():
     if pending_audit:
         issues.append(f"{pending_audit} pending audit retry proposal(s)")
 
+    public_export = _public_export_health()
+    if public_export["status"] in {"stale", "invalid"}:
+        issues.append(f"public snapshot {public_export['status']}")
+    elif public_export["status"] == "missing" and (VTRADER_HOME / "public-export" / "manifest.json").exists():
+        issues.append("public snapshot missing")
+
     return {
         "status": "healthy" if not issues else "degraded",
         "issues": issues,
@@ -481,6 +555,7 @@ def get_business_health():
         "pendingRiskActions": pending_risk,
         "pendingRiskActionDetails": pending_risk_actions,
         "pendingAuditRetries": pending_audit,
+        "publicExport": public_export,
     }
 
 
