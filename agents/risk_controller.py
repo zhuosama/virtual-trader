@@ -283,9 +283,10 @@ class RiskControllerAgent:
             if not positions:
                 continue
             
-            # 计算前3大持仓占比
+            # 计算前3大持仓占账户总资产比例。不能用持仓市值合计做分母；
+            # 高现金/低仓位账户会被误判为前3持仓 100% 集中。
             market_values = [p.get('market_value', 0) for p in positions]
-            total_value = sum(market_values)
+            total_value = account.get('total_value') or sum(market_values)
             
             if total_value > 0:
                 sorted_values = sorted(market_values, reverse=True)

@@ -139,6 +139,31 @@ class TestRiskReduction(unittest.TestCase):
         actions = agent.generate_risk_reduction_actions()
         self.assertEqual(actions, [])
 
+    def test_concentration_limit_uses_account_value_not_position_book(self):
+        """Top-3 concentration should not flag normal low-exposure accounts."""
+        from risk_controller import RiskControllerAgent
+
+        main_positions = [
+            {"code": "000651", "name": "格力电器", "market_value": 95304},
+            {"code": "002415", "name": "海康威视", "market_value": 49500},
+            {"code": "600900", "name": "长江电力", "market_value": 48402},
+            {"code": "601006", "name": "大秦铁路", "market_value": 43440},
+        ]
+        lab_positions = [
+            {"code": "300124", "name": "汇川技术", "market_value": 61888},
+            {"code": "688111", "name": "金山办公", "market_value": 25319},
+        ]
+        tmpdir = self._make_accounts(main_positions=main_positions, lab_positions=lab_positions)
+        agent = RiskControllerAgent.__new__(RiskControllerAgent)
+        agent.data_dir = tmpdir
+        agent.config = {}
+        agent.risk_rules = agent._load_risk_rules()
+
+        result = agent._check_concentration_limits({})
+
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["warnings"], [])
+
     def test_stop_loss_generates_sell(self):
         """Position with -8% loss > 7% stop → generate stop_loss sell."""
         from risk_controller import RiskControllerAgent
