@@ -1,0 +1,156 @@
+{
+  "monitor": "h53fix_cross_family_composite_ic",
+  "task": "H53-FIX-MONITOR",
+  "status": "RESEARCH_ONLY",
+  "paper_only": true,
+  "generated_at": "2026-06-01 17:43:19",
+  "description": "Forward IC monitor for the H53-FIX cross-family composite (Charter §5 #2 spike, SIGNAL_NEGATIVE). Tracks composite IC/IR/ρ̄ on real data over time. Not a strategy: no P&L, no orders, no config.",
+  "composite_legs": {
+    "reversal": "alpha_065",
+    "volatility": "alpha_054",
+    "volume": "alpha_163",
+    "momentum": "alpha_048"
+  },
+  "registration_baseline": {
+    "registered_at": "2026-05-31",
+    "ic_window": "2025-01-01..2026-05-18",
+    "n_common_dates": 329,
+    "composite_ir": 0.3165,
+    "composite_mean_ic": 0.0383,
+    "rho_mean": 0.4437,
+    "threshold_ir": 0.5,
+    "verdict": "SIGNAL_NEGATIVE"
+  },
+  "latest": {
+    "observed_at": "2026-06-01T15:43:19.147739+00:00",
+    "ic_window": "2025-01-01..2026-05-18",
+    "n_common_dates": 329,
+    "legs": [
+      {
+        "theme": "reversal",
+        "factor_id": "alpha_065",
+        "mean_ic": 0.039538571937334184,
+        "std_ic": 0.1764585997900334,
+        "ir": 0.22406712953849117,
+        "n_obs": 329
+      },
+      {
+        "theme": "volatility",
+        "factor_id": "alpha_054",
+        "mean_ic": 0.03815192630504857,
+        "std_ic": 0.1473792932882151,
+        "ir": 0.25886897306827644,
+        "n_obs": 329
+      },
+      {
+        "theme": "volume",
+        "factor_id": "alpha_163",
+        "mean_ic": 0.04165289046726837,
+        "std_ic": 0.1636006023253199,
+        "ir": 0.25460108260751735,
+        "n_obs": 329
+      },
+      {
+        "theme": "momentum",
+        "factor_id": "alpha_048",
+        "mean_ic": 0.033706564236629794,
+        "std_ic": 0.1422315760592179,
+        "ir": 0.23698369356883253,
+        "n_obs": 329
+      }
+    ],
+    "pairwise_corr": {
+      "alpha_065|alpha_054": 0.2365165501346825,
+      "alpha_065|alpha_163": 0.48487995700579756,
+      "alpha_065|alpha_048": 0.8562201444185998,
+      "alpha_054|alpha_163": 0.5573855262016537,
+      "alpha_054|alpha_048": 0.15132041230303572,
+      "alpha_163|alpha_048": 0.3761639579933206
+    },
+    "rho_mean": 0.44374775800951505,
+    "ir_avg_single": 0.24363021969577936,
+    "composite_ir": 0.31648767822933643,
+    "composite_mean_ic": 0.03826248823657023,
+    "threshold_ir": 0.5,
+    "passes_threshold": false
+  },
+  "forward_history": [
+    {
+      "observed_at": "2026-06-01T15:43:19.147739+00:00",
+      "ic_window": "2025-01-01..2026-05-18",
+      "n_common_dates": 329,
+      "legs": [
+        {
+          "theme": "reversal",
+          "factor_id": "alpha_065",
+          "mean_ic": 0.039538571937334184,
+          "std_ic": 0.1764585997900334,
+          "ir": 0.22406712953849117,
+          "n_obs": 329
+        },
+        {
+          "theme": "volatility",
+          "factor_id": "alpha_054",
+          "mean_ic": 0.03815192630504857,
+          "std_ic": 0.1473792932882151,
+          "ir": 0.25886897306827644,
+          "n_obs": 329
+        },
+        {
+          "theme": "volume",
+          "factor_id": "alpha_163",
+          "mean_ic": 0.04165289046726837,
+          "std_ic": 0.1636006023253199,
+          "ir": 0.25460108260751735,
+          "n_obs": 329
+        },
+        {
+          "theme": "momentum",
+          "factor_id": "alpha_048",
+          "mean_ic": 0.033706564236629794,
+          "std_ic": 0.1422315760592179,
+          "ir": 0.23698369356883253,
+          "n_obs": 329
+        }
+      ],
+      "pairwise_corr": {
+        "alpha_065|alpha_054": 0.2365165501346825,
+        "alpha_065|alpha_163": 0.48487995700579756,
+        "alpha_065|alpha_048": 0.8562201444185998,
+        "alpha_054|alpha_163": 0.5573855262016537,
+        "alpha_054|alpha_048": 0.15132041230303572,
+        "alpha_163|alpha_048": 0.3761639579933206
+      },
+      "rho_mean": 0.44374775800951505,
+      "ir_avg_single": 0.24363021969577936,
+      "composite_ir": 0.31648767822933643,
+      "composite_mean_ic": 0.03826248823657023,
+      "threshold_ir": 0.5,
+      "passes_threshold": false
+    }
+  ],
+  "monitor_cadence": {
+    "per_run": [
+      "composite_ir",
+      "composite_mean_ic",
+      "rho_mean",
+      "n_common_dates"
+    ],
+    "drift_vs_baseline": [
+      "composite_ir delta",
+      "rho_mean delta"
+    ]
+  },
+  "hard_prohibitions": [
+    "do_not_place_live_orders",
+    "do_not_modify_production_config",
+    "do_not_write_value_account_positions_or_trades",
+    "do_not_promote_to_active_json",
+    "do_not_fabricate_pnl_or_drawdown"
+  ],
+  "promotion_blockers": [
+    "spike verdict is SIGNAL_NEGATIVE (composite IR 0.317 < 0.5 threshold)",
+    "ENGINE-OHLV-V1 diff uncommitted; engine not frozen (no engine-frozen-vN tag)",
+    "no H42 9-condition acceptance-gate run exists for this signal"
+  ]
+}
