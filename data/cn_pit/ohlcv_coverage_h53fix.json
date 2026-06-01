@@ -1,0 +1,2437 @@
+{
+  "source_provider": "tushare:pro_bar:qfq",
+  "universe": "H47 CSI300 frozen close matrix (482 tickers)",
+  "total_tickers_attempted": 482,
+  "ok_tickers": 475,
+  "empty_tickers": 7,
+  "error_tickers": 0,
+  "total_rows": 183732,
+  "amount_nonnull": 183732,
+  "amount_nonnull_pct": 100.0,
+  "per_ticker": {
+    "000001.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000002.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000063.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000066.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000069.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000100.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000157.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000166.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000301.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000333.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000338.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000408.SZ": {
+      "status": "ok",
+      "rows": 385,
+      "err": null
+    },
+    "000413.SZ": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    },
+    "000415.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000423.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000425.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000538.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000568.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000596.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000617.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000625.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000627.SZ": {
+      "status": "ok",
+      "rows": 164,
+      "err": null
+    },
+    "000629.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000630.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000651.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000656.SZ": {
+      "status": "ok",
+      "rows": 389,
+      "err": null
+    },
+    "000661.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000671.SZ": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    },
+    "000703.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000708.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000709.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000723.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000725.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000728.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000733.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000768.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000776.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000783.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000786.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000792.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000800.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000807.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000858.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000860.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000876.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000877.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000895.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000898.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000938.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000961.SZ": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    },
+    "000963.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000975.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000977.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000983.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "000999.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "001289.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "001391.SZ": {
+      "status": "ok",
+      "rows": 331,
+      "err": null
+    },
+    "001965.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "001979.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002001.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002007.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002008.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002010.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002024.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002027.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002028.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002032.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002044.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002049.SZ": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "002050.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002064.SZ": {
+      "status": "ok",
+      "rows": 386,
+      "err": null
+    },
+    "002074.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002081.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002120.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002129.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002142.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002146.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002153.SZ": {
+      "status": "ok",
+      "rows": 387,
+      "err": null
+    },
+    "002157.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002179.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002180.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002202.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002230.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002236.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002241.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002252.SZ": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "002271.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002294.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002304.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002311.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002352.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002371.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002384.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002410.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002411.SZ": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    },
+    "002414.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002415.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002422.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002456.SZ": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "002459.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002460.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002463.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002466.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002468.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002475.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002493.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002508.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002555.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002558.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002568.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002594.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002600.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002601.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002602.SZ": {
+      "status": "ok",
+      "rows": 388,
+      "err": null
+    },
+    "002603.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002607.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002624.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002625.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002648.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002673.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002709.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002714.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002736.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002739.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002756.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002773.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002791.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002812.SZ": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "002821.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002841.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002916.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002920.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002938.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002939.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002945.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "002958.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "003816.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300003.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300014.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300015.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300017.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300024.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300033.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300059.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300070.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300122.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300124.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300136.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300142.SZ": {
+      "status": "ok",
+      "rows": 388,
+      "err": null
+    },
+    "300144.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300207.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300223.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300251.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300274.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300308.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300316.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300347.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300394.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300408.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300413.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300418.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300433.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300442.SZ": {
+      "status": "ok",
+      "rows": 384,
+      "err": null
+    },
+    "300450.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300454.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300476.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300496.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300498.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300502.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300529.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300558.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300595.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300601.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300628.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300661.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300676.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300677.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300750.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300751.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300759.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300760.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300763.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300769.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300782.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300803.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300832.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300866.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300888.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300896.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300919.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300957.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300979.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "300999.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "301236.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "301269.SZ": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "302132.SZ": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600000.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600004.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600009.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600010.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600011.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600015.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600016.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600018.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600019.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600023.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600025.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600026.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600027.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600028.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600029.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600030.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600031.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600036.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600038.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600039.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600048.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600050.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600061.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600066.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600068.SS": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    },
+    "600079.SS": {
+      "status": "ok",
+      "rows": 389,
+      "err": null
+    },
+    "600085.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600089.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600100.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600104.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600109.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600111.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600115.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600118.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600132.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600143.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600150.SS": {
+      "status": "ok",
+      "rows": 386,
+      "err": null
+    },
+    "600153.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600160.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600161.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600170.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600176.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600177.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600183.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600188.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600196.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600208.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "600219.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600221.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600233.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600271.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600276.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600297.SS": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    },
+    "600299.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600309.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600332.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600340.SS": {
+      "status": "ok",
+      "rows": 389,
+      "err": null
+    },
+    "600346.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600352.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600362.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600369.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600372.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600377.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600383.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600390.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600398.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600406.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600415.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600426.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600436.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600438.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "600460.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600482.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "600487.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600489.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600498.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600515.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600516.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600519.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600521.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600522.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600535.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600547.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600566.SS": {
+      "status": "ok",
+      "rows": 389,
+      "err": null
+    },
+    "600570.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600583.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600584.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600585.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600588.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600600.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600606.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600637.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600655.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600660.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600663.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600674.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600690.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600703.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600705.SS": {
+      "status": "ok",
+      "rows": 119,
+      "err": null
+    },
+    "600732.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600733.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600741.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600745.SS": {
+      "status": "ok",
+      "rows": 387,
+      "err": null
+    },
+    "600754.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600760.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600763.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600795.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600803.SS": {
+      "status": "ok",
+      "rows": 384,
+      "err": null
+    },
+    "600809.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600816.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600837.SS": {
+      "status": "ok",
+      "rows": 78,
+      "err": null
+    },
+    "600845.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600848.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600867.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600872.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600875.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600884.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600886.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600887.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600893.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600900.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600905.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600918.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600919.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600926.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600928.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600930.SS": {
+      "status": "ok",
+      "rows": 201,
+      "err": null
+    },
+    "600938.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600941.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600958.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "600968.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600977.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600989.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600998.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "600999.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601006.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601009.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601012.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601018.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601021.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601058.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601059.SS": {
+      "status": "ok",
+      "rows": 370,
+      "err": null
+    },
+    "601066.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601077.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601088.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "601100.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601108.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601111.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601117.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601127.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601136.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601138.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601155.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601162.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601166.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601169.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601186.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601198.SS": {
+      "status": "ok",
+      "rows": 370,
+      "err": null
+    },
+    "601211.SS": {
+      "status": "ok",
+      "rows": 386,
+      "err": null
+    },
+    "601212.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601216.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601225.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601229.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601231.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601236.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601238.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601288.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601298.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601318.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601319.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601328.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601336.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601360.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601377.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601390.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601398.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601456.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601555.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "601577.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601600.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601601.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601607.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601615.SS": {
+      "status": "ok",
+      "rows": 382,
+      "err": null
+    },
+    "601618.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601628.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601633.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601658.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601668.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601669.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601688.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601689.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601696.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601698.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601699.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601727.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601728.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601766.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601788.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601799.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601800.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601808.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601816.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601818.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601825.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601828.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601838.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601857.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601865.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601868.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601872.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601877.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601878.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601881.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601888.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601898.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601899.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601901.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601916.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601919.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601933.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601939.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601966.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601985.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601988.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601989.SS": {
+      "status": "ok",
+      "rows": 209,
+      "err": null
+    },
+    "601990.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601992.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601995.SS": {
+      "status": "ok",
+      "rows": 370,
+      "err": null
+    },
+    "601997.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "601998.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603019.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "603087.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603156.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603160.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "603185.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603195.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603233.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603259.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603260.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603288.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603290.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603296.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603338.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603369.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603392.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603486.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603501.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603517.SS": {
+      "status": "ok",
+      "rows": 389,
+      "err": null
+    },
+    "603658.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603659.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603799.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603806.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603833.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603882.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603893.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603899.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603939.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603986.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "603993.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "605117.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "605499.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688005.SS": {
+      "status": "ok",
+      "rows": 387,
+      "err": null
+    },
+    "688008.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688009.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688012.SS": {
+      "status": "ok",
+      "rows": 381,
+      "err": null
+    },
+    "688036.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688041.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "688047.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688065.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688082.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688111.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688126.SS": {
+      "status": "ok",
+      "rows": 380,
+      "err": null
+    },
+    "688169.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688187.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688223.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688256.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688271.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688303.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688363.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688396.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688472.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688506.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688561.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688599.SS": {
+      "status": "ok",
+      "rows": 390,
+      "err": null
+    },
+    "688981.SS": {
+      "status": "ok",
+      "rows": 384,
+      "err": null
+    },
+    "000300.SS": {
+      "status": "empty",
+      "rows": 0,
+      "err": null
+    }
+  },
+  "empty_ticker_list": [
+    "000413.SZ",
+    "000671.SZ",
+    "000961.SZ",
+    "002411.SZ",
+    "600068.SS",
+    "600297.SS",
+    "000300.SS"
+  ],
+  "error_ticker_list": [],
+  "date_span": {
+    "earliest": "20241008",
+    "latest": "20260518"
+  }
+}
