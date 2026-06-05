@@ -7,6 +7,7 @@
 
 import json
 import os
+import csv
 
 VTRADER_HOME = os.environ.get("VTRADER_HOME", os.path.expanduser("~/.hermes/virtual-trader"))
 import sys
@@ -68,6 +69,92 @@ class MultiAgentCoordinator:
             "failures": failures,
             "results": results,
         }
+
+    def _ensure_daily_report_for_date(self, date_str: str) -> Dict:
+        """Create a minimal daily report when a trade file exists but the report is missing."""
+        report_dir = os.path.join(self.data_dir, "reports", "daily")
+        report_path = os.path.join(report_dir, f"{date_str}.md")
+        if os.path.exists(report_path):
+            return {"created": False, "path": report_path, "reason": "exists"}
+
+        trade_path = os.path.join(self.data_dir, "trades", date_str[:7], f"{date_str}.json")
+        if not os.path.exists(trade_path):
+            return {"created": False, "path": report_path, "reason": "no_trade_file"}
+
+        trade_record = self._read_json(trade_path, {})
+        perf_history = self._read_json(
+            os.path.join(self.data_dir, "strategies", "performance_history.json"),
+            [],
+        )
+        perf_entry = next(
+            (entry for entry in perf_history if isinstance(entry, dict) and entry.get("date") == date_str),
+            {},
+        )
+
+        accounts = {
+            account_type: self._read_json(
+                os.path.join(self.data_dir, "accounts", f"{account_type}.json"),
+                {},
+            )
+            for account_type in ("main", "lab")
+        }
+        snapshots = trade_record.get("account_snapshots", {}) if isinstance(trade_record, dict) else {}
+
+        def account_line(account_type: str, title: str) -> str:
+            snapshot = snapshots.get(account_type, {})
+            account = accounts.get(account_type, {})
+            pct = perf_entry.get(f"{account_type}_pct")
+            if pct is None:
+                pct = snapshot.get("daily_pnl_pct", account.get("daily_pnl_pct", 0))
+            total_value = snapshot.get("total_value", account.get("total_value", 0))
+            daily_pnl = snapshot.get("daily_pnl", account.get("daily_pnl", 0))
+            return f"- {title}总资产：{total_value:,.0f}（{pct:+.2f}%），今日盈亏：{daily_pnl:+,.0f}元"
+
+        lines = [
+            f"# 虚拟盘日报 {date_str}",
+            "",
+            "## 今日绩效",
+            account_line("main", "主账户"),
+            account_line("lab", "实验账户"),
+        ]
+        if perf_entry.get("hs300_pct") is not None:
+            lines.append(f"- 沪深300：{perf_entry.get('hs300_pct'):+.2f}%")
+
+        trades = trade_record.get("trades", []) if isinstance(trade_record, dict) else []
+        lines.extend(["", "## 今日交易"])
+        if trades:
+            for idx, trade in enumerate(trades, 1):
+                action = {"buy": "买入", "sell": "卖出"}.get(trade.get("action"), trade.get("action", "交易"))
+                amount = trade.get("amount", trade.get("net_amount", 0))
+                lines.append(
+                    f"{idx}. {trade.get('account', '')}账户 {action} "
+                    f"{trade.get('name', '')}（{trade.get('code', '')}）"
+                    f"{trade.get('shares', 0)}股 @ {trade.get('price', 0):.2f}，金额 {amount:,.0f}元"
+                )
+                if trade.get("signal"):
+                    lines.append(f"   - 原因：{trade.get('signal')}")
+        else:
+            lines.append("- 今日无交易")
+
+        lines.extend([
+            "",
+            "## 账本校验备注",
+            "- 自动补全日报：交易文件已存在，盘后最终账本校验前补齐 INV-2 所需日报。",
+            "",
+        ])
+
+        os.makedirs(report_dir, exist_ok=True)
+        tmp_path = f"{report_path}.tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+            os.replace(tmp_path, report_path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+        return {"created": True, "path": report_path, "reason": "missing_report"}
 
     def _persist_risk_actions(self, risk_actions: List[Dict]) -> Dict:
         """Persist reduce-only risk actions to a durable pending queue."""
@@ -175,12 +262,21 @@ class MultiAgentCoordinator:
             if not (action.get("auto_execute") and action.get("action") == "sell" and action.get("sell_shares", 0) > 0):
                 continue
             expires_at = action.get("expires_at")
-            if expires_at and datetime.now() > datetime.fromisoformat(expires_at):
-                action["status"] = "expired"
-                action["expired_at"] = datetime.now().isoformat()
-                result["skipped"] += 1
-                changed = True
-                continue
+            if expires_at:
+                try:
+                    expires_at_dt = datetime.fromisoformat(expires_at)
+                except ValueError:
+                    action["status"] = "invalid"
+                    action["invalid_reason"] = f"invalid expires_at: {expires_at}"
+                    result["skipped"] += 1
+                    changed = True
+                    continue
+                if datetime.now() > expires_at_dt:
+                    action["status"] = "expired"
+                    action["expired_at"] = datetime.now().isoformat()
+                    result["skipped"] += 1
+                    changed = True
+                    continue
             execution = self._execute_risk_action(action, use_action_price=False)
             execution.setdefault("action", dict(action))
             execution.setdefault("name", action.get("name", ""))
@@ -201,7 +297,41 @@ class MultiAgentCoordinator:
         return result
 
     def _is_trading_day(self, dt: datetime) -> bool:
+        known_days = self._load_known_trading_days()
+        if known_days:
+            day = dt.strftime("%Y-%m-%d")
+            if known_days["start"] <= day <= known_days["end"]:
+                return day in known_days["days"]
         return dt.weekday() < 5
+
+    def _load_known_trading_days(self) -> Optional[Dict]:
+        """Load known A-share trading dates from local PIT price CSVs, if available."""
+        cached = getattr(self, "_known_trading_days", None)
+        if cached is not None:
+            return cached
+
+        data_dir = os.path.join(self.data_dir, "data", "cn_pit")
+        days = set()
+        if os.path.isdir(data_dir):
+            for filename in os.listdir(data_dir):
+                if not (filename.startswith("prices") and filename.endswith(".csv")):
+                    continue
+                path = os.path.join(data_dir, filename)
+                try:
+                    with open(path, newline="") as f:
+                        reader = csv.reader(f)
+                        next(reader, None)
+                        for row in reader:
+                            if row and len(row[0]) == 10:
+                                days.add(row[0])
+                except OSError:
+                    continue
+
+        self._known_trading_days = (
+            {"days": days, "start": min(days), "end": max(days)}
+            if days else None
+        )
+        return self._known_trading_days
 
     def _next_trading_action_expiry(self, dt: datetime) -> datetime:
         next_expiry = (dt + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0)
@@ -333,6 +463,242 @@ class MultiAgentCoordinator:
             "net_amount": net_amount,
             "realized_pnl": realized_pnl,
             "trade_record_path": trade_path,
+        }
+
+    @staticmethod
+    def _round_down_to_lot(shares: float, lot_size: int = 100) -> int:
+        """Round share count DOWN to the nearest lot (A-share board lot = 100).
+
+        Buys/autonomous sells must not overshoot the requested notional, so we
+        round down (mirror of backtest_engine buy `(shares // 100) * 100`,
+        backtest/backtest_engine.py:70). Contrast with risk_controller
+        `_round_up_to_lot` (risk_controller.py:25) used for reduce-only sizing.
+        """
+        if shares <= 0:
+            return 0
+        return int(shares // lot_size) * lot_size
+
+    def _execute_orders(self, account_type: str, orders: List[Dict],
+                        prices: Dict, account_state: Dict) -> Dict:
+        """G7 real-execution writer for canary/live: turn surviving (pass/clamp)
+        orders into real trades, mutating accounts/<acct>.json + trades/<月>/<日>.json.
+
+        Mirrors the reduce-only writer `_execute_risk_action` (coordinator.py:344-466)
+        for the account/trade write format, fee model, and atomic writes.
+
+        Fee model (cited):
+          SELL — commission=round(max(amount*0.0003,5),2); stamp_tax=round(amount*0.001,2);
+                 transfer_fee=round(amount*0.00002,2); net=amount-fees
+                 (identical to _execute_risk_action coordinator.py:377-381 and
+                  backtest_engine.sell backtest/backtest_engine.py:100-103).
+          BUY  — commission + transfer_fee only, **NO stamp tax** (A-share asymmetry;
+                 mirrors backtest_engine.buy backtest/backtest_engine.py:65-66);
+                 net=amount+fees (cash out = notional + fees).
+
+        Lot rounding: shares=round_down_to_lot(est_amount/price,100); shares→0 skipped.
+        BUY cash guard: if cash < net, clamp shares down to the most affordable lot;
+        if even one lot is unaffordable, the order is skipped (documented).
+        SELL is clamped to currently-held shares.
+
+        Returns {trades:[...], snapshot:{total_value,daily_pnl,daily_pnl_pct},
+                 account_path, trade_path}. Caller is responsible for post-write
+        bookkeeping (perf upsert + daily report + ledger validation + rollback).
+        """
+        account_path = os.path.join(self.data_dir, "accounts", f"{account_type}.json")
+        with open(account_path) as f:
+            account = json.load(f)
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        executed_trades: List[Dict] = []
+
+        for order in orders or []:
+            side = order.get("side")
+            code = order.get("code")
+            if not code or side not in ("buy", "sell"):
+                continue
+            price = float(prices.get(code) or order.get("price") or 0)
+            if price <= 0:
+                continue
+            est_amount = float(order.get("est_amount", 0) or 0)
+            if est_amount <= 0:
+                continue
+
+            positions = account.get("positions", [])
+            position = next((p for p in positions if p.get("code") == code), None)
+
+            if side == "buy":
+                shares = self._round_down_to_lot(est_amount / price)
+                if shares <= 0:
+                    continue
+                amount = round(price * shares, 2)
+                commission = round(max(amount * 0.0003, 5), 2)
+                transfer_fee = round(amount * 0.00002, 2)
+                stamp_tax = 0  # A-share buys pay no stamp tax
+                total_cost = round(commission + transfer_fee, 2)
+                net_amount = round(amount + total_cost, 2)
+
+                # cash guard: clamp shares down to affordable lots, else skip
+                cash = account.get("cash", 0)
+                if net_amount > cash:
+                    # cash >= price*shares*(1+0.0003+0.00002) (commission floor 5 ignored
+                    # at clamp-time for simplicity; re-verified after re-lotting below)
+                    affordable = int(cash / (price * 1.00032))
+                    shares = self._round_down_to_lot(affordable)
+                    if shares <= 0:
+                        continue
+                    amount = round(price * shares, 2)
+                    commission = round(max(amount * 0.0003, 5), 2)
+                    transfer_fee = round(amount * 0.00002, 2)
+                    total_cost = round(commission + transfer_fee, 2)
+                    net_amount = round(amount + total_cost, 2)
+                    # if commission floor pushed net over cash, drop one more lot
+                    while net_amount > cash and shares > 0:
+                        shares -= 100
+                        if shares <= 0:
+                            break
+                        amount = round(price * shares, 2)
+                        commission = round(max(amount * 0.0003, 5), 2)
+                        transfer_fee = round(amount * 0.00002, 2)
+                        total_cost = round(commission + transfer_fee, 2)
+                        net_amount = round(amount + total_cost, 2)
+                    if shares <= 0:
+                        continue
+
+                if position:
+                    old_shares = int(position.get("shares", 0))
+                    old_avg = float(position.get("avg_cost", price))
+                    new_shares = old_shares + shares
+                    position["avg_cost"] = round(
+                        (old_shares * old_avg + amount) / new_shares, 4) if new_shares else price
+                    position["shares"] = new_shares
+                    position["current_price"] = price
+                    position["market_value"] = round(new_shares * price, 2)
+                    position["unrealized_pnl"] = round(
+                        position["market_value"] - new_shares * position["avg_cost"], 2)
+                    position["unrealized_pnl_pct"] = round(
+                        (price / position["avg_cost"] - 1) * 100, 2) if position["avg_cost"] else 0
+                else:
+                    positions.append({
+                        "code": code,
+                        "name": order.get("name", ""),
+                        "shares": shares,
+                        "avg_cost": round(price, 4),
+                        "current_price": price,
+                        "market_value": round(shares * price, 2),
+                        "unrealized_pnl": 0.0,
+                        "unrealized_pnl_pct": 0.0,
+                    })
+                    account["positions"] = positions
+
+                account["cash"] = round(account.get("cash", 0) - net_amount, 2)
+                realized_pnl = 0.0
+
+            else:  # sell — mirror _execute_risk_action
+                if not position:
+                    continue
+                current_shares = int(position.get("shares", 0))
+                want = self._round_down_to_lot(est_amount / price)
+                sell_shares = min(want, current_shares)
+                if sell_shares <= 0:
+                    continue
+                amount = round(price * sell_shares, 2)
+                commission = round(max(amount * 0.0003, 5), 2)
+                stamp_tax = round(amount * 0.001, 2)
+                transfer_fee = round(amount * 0.00002, 2)
+                total_cost = round(commission + stamp_tax + transfer_fee, 2)
+                net_amount = round(amount - total_cost, 2)
+                avg_cost = float(position.get("avg_cost", price))
+                realized_pnl = round((price - avg_cost) * sell_shares - total_cost, 2)
+
+                remaining = current_shares - sell_shares
+                if remaining > 0:
+                    position["shares"] = remaining
+                    position["current_price"] = price
+                    position["market_value"] = round(remaining * price, 2)
+                    position["unrealized_pnl"] = round(
+                        position["market_value"] - remaining * avg_cost, 2)
+                    position["unrealized_pnl_pct"] = round(
+                        (price / avg_cost - 1) * 100, 2) if avg_cost else 0
+                else:
+                    account["positions"] = [p for p in positions if p.get("code") != code]
+
+                account["cash"] = round(account.get("cash", 0) + net_amount, 2)
+                shares = sell_shares
+
+            executed_trades.append({
+                "account": account_type,
+                "time": "15:00",
+                "action": side,
+                "code": code,
+                "name": order.get("name", (position or {}).get("name", "")),
+                "type": "stock",
+                "price": price,
+                "shares": shares,
+                "amount": amount,
+                "commission": commission,
+                "stamp_tax": stamp_tax,
+                "transfer_fee": transfer_fee,
+                "total_cost": total_cost,
+                "net_amount": net_amount,
+                "signal": order.get("reason", "受控自主执行"),
+                "strategy_ref": "execution_model",
+                "realized_pnl": realized_pnl,
+                "execution_type": "executed",
+                "source": "autonomous_exec",
+                "generated_at": datetime.now().isoformat(),
+                "rationale": "controlled autonomous execution (G7)",
+            })
+
+        if not executed_trades:
+            return {"trades": [], "snapshot": {}, "account_path": account_path,
+                    "trade_path": None}
+
+        # recompute account aggregates
+        account["portfolio_market_value"] = round(
+            sum(p.get("market_value", 0) for p in account.get("positions", [])), 2)
+        account["total_value"] = round(
+            account["cash"] + account["portfolio_market_value"], 2)
+        account["total_pnl"] = round(
+            account["total_value"] - account.get("initial_capital", 0), 2)
+        initial_capital = account.get("initial_capital", 1)
+        account["total_pnl_pct"] = round(
+            account["total_pnl"] / initial_capital * 100, 2) if initial_capital else 0
+        account["position_pct"] = round(
+            account["portfolio_market_value"] / account["total_value"] * 100, 1) \
+            if account["total_value"] else 0
+        account["trade_count"] = account.get("trade_count", 0) + len(executed_trades)
+        account["updated_at"] = datetime.now().strftime("%Y-%m-%dT15:00:00")
+        self._atomic_write_json(account_path, account)
+
+        # append to trades/<月>/<日>.json
+        trades_dir = os.path.join(self.data_dir, "trades", today[:7])
+        os.makedirs(trades_dir, exist_ok=True)
+        trade_path = os.path.join(trades_dir, f"{today}.json")
+        if os.path.exists(trade_path):
+            with open(trade_path) as f:
+                trade_record = json.load(f)
+        else:
+            trade_record = {
+                "date": today,
+                "is_trading_day": True,
+                "market_summary": {},
+                "trades": [],
+                "account_snapshots": {},
+            }
+        trade_record.setdefault("trades", []).extend(executed_trades)
+        snapshot = {
+            "total_value": account["total_value"],
+            "daily_pnl": account.get("daily_pnl", 0),
+            "daily_pnl_pct": account.get("daily_pnl_pct", 0),
+        }
+        trade_record.setdefault("account_snapshots", {})[account_type] = snapshot
+        self._atomic_write_json(trade_path, trade_record)
+
+        return {
+            "trades": executed_trades,
+            "snapshot": snapshot,
+            "account_path": account_path,
+            "trade_path": trade_path,
         }
 
     def _pending_retry_dir(self) -> str:
@@ -504,6 +870,387 @@ class MultiAgentCoordinator:
         
         return agents
     
+    def build_plan_record(self, planner, plan: Dict, validation_result: Dict) -> Dict:
+        """Phase 0b：把 trading_plan + 校验结果装配成持久化 plan 记录。
+
+        纯函数式：从 planner.compute_target_weights 取 main/lab 目标权重，
+        随同 decision / total_position / actions 一并落进 workflow JSON 的
+        plan 字段，供盘后 ExecutionModel 消费（diff→候选订单）。
+        """
+        position_sizing = plan.get('position_sizing', {}) or {}
+        total_position = position_sizing.get('total_position', 1.0)
+        if total_position is None:
+            total_position = 1.0
+        return {
+            "generated_at": datetime.now().isoformat(),
+            "market_regime": plan.get('market_regime'),
+            "decision": validation_result.get('decision'),
+            "total_position": total_position,
+            "actions": plan.get('actions', []),
+            "target_weights": {
+                "main": planner.compute_target_weights('main', plan),
+                "lab": planner.compute_target_weights('lab', plan),
+            },
+        }
+
+    def _latest_pre_market_plan(self, date_str: str) -> Dict:
+        """读今日盘前 workflow JSON 的 plan 字段（含 target_weights）。
+
+        date_str 形如 'YYYY-MM-DD'，对应文件名 workflow_pre_market_YYYYMMDD_*.json。
+        找不到/无 plan 字段时返回 {}。
+        """
+        workflows_dir = os.path.join(self.data_dir, "agents", "workflows")
+        if not os.path.isdir(workflows_dir):
+            return {}
+        prefix = f"workflow_pre_market_{date_str.replace('-', '')}_"
+        candidates = sorted(
+            f for f in os.listdir(workflows_dir)
+            if f.startswith(prefix) and f.endswith(".json")
+        )
+        if not candidates:
+            return {}
+        latest = os.path.join(workflows_dir, candidates[-1])
+        data = self._read_json(latest, {})
+        plan = data.get("plan", {}) if isinstance(data, dict) else {}
+        return plan if isinstance(plan, dict) else {}
+
+    def _account_risk_rules(self, account: str) -> Dict:
+        """读 strategies/active.json 的 <acct>_strategy.rules.position_sizing 硬上限（G2）。"""
+        active = self._read_json(
+            os.path.join(self.data_dir, "strategies", "active.json"), {}
+        )
+        strat = active.get(f"{account}_strategy", {}) if isinstance(active, dict) else {}
+        ps = (strat.get("rules", {}) or {}).get("position_sizing", {}) or {}
+        return {
+            "max_single_position": ps.get("max_single_position"),
+            "max_sector_exposure": ps.get("max_sector_exposure"),
+            "total_position_limit": ps.get("total_position_limit"),
+        }
+
+    def _account_equity_series(self, account: str):
+        """从 strategies/performance_history.json 的日度 <acct>_pct 构建月度权益序列
+        （G4 回撤/月亏熔断喂的"实时权益序列"，复用 h35 阈值数学）。
+
+        返回 {YYYY-MM: [equity values...]} dict（按月分组，复利累乘 (1+pct)）。
+        不可读 → None（G4 据此 graceful skip）。
+        """
+        hist = self._read_json(
+            os.path.join(self.data_dir, "strategies", "performance_history.json"), None
+        )
+        if not isinstance(hist, list) or not hist:
+            return None
+        key = f"{account}_pct"
+        by_month: Dict[str, List[float]] = {}
+        equity = 1.0
+        for row in hist:
+            if not isinstance(row, dict):
+                continue
+            date = str(row.get("date", ""))
+            month = date[:7]
+            pct = row.get(key)
+            if pct is None or not month:
+                continue
+            try:
+                equity *= (1.0 + float(pct))
+            except (TypeError, ValueError):
+                continue
+            by_month.setdefault(month, []).append(equity)
+        return by_month or None
+
+    def _account_realized_sells(self, account: str):
+        """从 trades/<月>/*.json 收集该账户的卖出记录（含 realized_pnl），按日期排序。
+        G4 连亏卖熔断喂的"已实现盈亏/卖出"。不可读 → None（graceful skip）。"""
+        trades_root = os.path.join(self.data_dir, "trades")
+        if not os.path.isdir(trades_root):
+            return None
+        sells: List[Dict] = []
+        try:
+            for month in sorted(os.listdir(trades_root)):
+                mdir = os.path.join(trades_root, month)
+                if not os.path.isdir(mdir):
+                    continue
+                for fname in sorted(os.listdir(mdir)):
+                    if not fname.endswith(".json"):
+                        continue
+                    data = self._read_json(os.path.join(mdir, fname), {})
+                    day = data.get("date") if isinstance(data, dict) else None
+                    for t in (data.get("trades", []) if isinstance(data, dict) else []):
+                        if not isinstance(t, dict) or t.get("account") != account:
+                            continue
+                        if t.get("action") != "sell":
+                            continue
+                        sells.append({
+                            "date": t.get("date", day),
+                            "action": "sell",
+                            "realized_pnl": t.get("realized_pnl", t.get("pnl", 0)),
+                        })
+        except OSError:
+            return None
+        sells.sort(key=lambda s: str(s.get("date", "")))
+        return sells
+
+    def run_shadow_execution(self, date_str: str = None) -> Dict:
+        """Backward-compat alias for run_autonomous_execution (existing callers/tests).
+
+        Mode is read from config/execution.json; in shadow this is the prior
+        Phase 2 behaviour (no real writes). Kept so callers that say "shadow"
+        keep working regardless of config — see run_autonomous_execution.
+        """
+        return self.run_autonomous_execution(date_str)
+
+    def run_autonomous_execution(self, date_str: str = None) -> Dict:
+        """Phase 3 mode-aware controlled autonomous execution.
+
+        Consumes today's pre-market plan.target_weights, runs ExecutionModel
+        gate chain G0–G6 per account, then by config.mode:
+          shadow → write shadow ledger only; executed==0; accounts/trades untouched.
+          canary → apply_canary_caps on surviving (pass/clamp) orders, then
+                   _execute_orders (real writes) + bookkeeping + rollback-on-fail.
+          live   → _execute_orders (real writes, NO canary caps) + bookkeeping
+                   + rollback-on-fail.
+          halt   → gate chain halts everything (G6); no writes.
+
+        Prices come from accounts/<acct>.json current_price (settlement-updated).
+        For canary/live, after writes for the day re-finalize the perf entry +
+        daily report (H2 fix) then _run_ledger_validation(strict=True); on
+        FAILURE roll back this execution's account + trade writes and set
+        summary['degraded_reason'].
+        Never raises into the caller (caller wraps in try/except too).
+        """
+        from execution_model import ExecutionModel
+
+        if date_str is None:
+            date_str = datetime.now().strftime("%Y-%m-%d")
+
+        plan = self._latest_pre_market_plan(date_str)
+        plan_found = isinstance(plan, dict) and bool(plan.get("target_weights"))
+        target_weights = plan.get("target_weights", {}) if isinstance(plan, dict) else {}
+        decision = plan.get("decision") if isinstance(plan, dict) else None
+        plan_date = date_str if plan_found else None
+
+        exec_model = ExecutionModel(data_dir=self.data_dir, exec_config=None, mode=None)
+        mode = exec_model.mode
+        agg = {"pass": 0, "clamp": 0, "reject": 0, "halt": 0}
+        summary = {
+            "mode": mode,
+            "date": date_str,
+            "plan_found": plan_found,
+            "accounts": {},
+            "counts": agg,
+        }
+
+        # 收集每账户的 gate 报告 + 存活订单（pass/clamp），real write 在闸门之后统一做。
+        per_account = {}
+        for acct in ("main", "lab"):
+            account_state = self._read_json(
+                os.path.join(self.data_dir, "accounts", f"{acct}.json"), {}
+            )
+            prices = {
+                pos.get("code"): pos.get("current_price", 0)
+                for pos in account_state.get("positions", [])
+                if pos.get("code")
+            }
+            acct_plan = {
+                "decision": decision,
+                "total_position": plan.get("total_position") if isinstance(plan, dict) else None,
+                "target_weights": target_weights.get(acct, {}),
+            }
+            report = exec_model.execute_plan(
+                acct, acct_plan, prices, account_state,
+                rules=self._account_risk_rules(acct),
+                date_str=date_str,
+                plan_date=plan_date,
+                equity_series=self._account_equity_series(acct),
+                realized_sells=self._account_realized_sells(acct),
+            )
+            counts = report.get("counts", {})
+            for k in agg:
+                agg[k] += counts.get(k, 0)
+            summary["accounts"][acct] = {
+                "candidates": len(report.get("candidates", [])),
+                "executed": report.get("executed", 0),
+                "counts": counts,
+                "decisions": report.get("decisions", []),
+            }
+            per_account[acct] = {
+                "report": report,
+                "prices": prices,
+                "account_state": account_state,
+            }
+
+        if mode not in ("canary", "live"):
+            # shadow/halt：execute_plan 已写影子账本（或全 halt），executed 恒 0。
+            return summary
+
+        # ── canary/live：把存活订单变成真实成交，随后记账 + 校验 + 回滚 ──────────
+        self._execute_real_orders(date_str, mode, exec_model, per_account, summary)
+        return summary
+
+    def _execute_real_orders(self, date_str: str, mode: str, exec_model,
+                             per_account: Dict, summary: Dict) -> None:
+        """canary/live real-write orchestration with H2 bookkeeping + rollback.
+
+        1) Capture pre-write account snapshots + whether today's trade file
+           pre-existed (for exact rollback).
+        2) Per account: take surviving (pass/clamp) orders; canary → apply
+           canary caps (live skips); call _execute_orders to write.
+        3) Re-finalize perf entry + daily report for today (H2), then
+           _run_ledger_validation(strict=True). On failure → roll back all
+           account/trade writes to the captured pre-write state and set
+           summary['degraded_reason'].
+        """
+        import copy
+
+        accounts_dir = os.path.join(self.data_dir, "accounts")
+        trade_path = os.path.join(
+            self.data_dir, "trades", date_str[:7], f"{date_str}.json")
+
+        # 1) 预写快照（精确回滚用）
+        pre_accounts = {}
+        for acct in ("main", "lab"):
+            p = os.path.join(accounts_dir, f"{acct}.json")
+            pre_accounts[acct] = copy.deepcopy(self._read_json(p, None))
+        trade_file_preexisted = os.path.exists(trade_path)
+        pre_trade_record = None
+        if trade_file_preexisted:
+            pre_trade_record = copy.deepcopy(self._read_json(trade_path, None))
+        # _refinalize_after_execution 还会改 perf_history 与日报 → 一并快照，
+        # 否则回滚后会残留按"已回滚写入"算出的脏 perf 条目（G4 equity 序列的来源）。
+        perf_path = os.path.join(self.data_dir, "strategies", "performance_history.json")
+        perf_preexisted = os.path.exists(perf_path)
+        pre_perf = copy.deepcopy(self._read_json(perf_path, None)) if perf_preexisted else None
+        report_path = os.path.join(self.data_dir, "reports", "daily", f"{date_str}.md")
+        report_preexisted = os.path.exists(report_path)
+        pre_report = None
+        if report_preexisted:
+            with open(report_path, encoding="utf-8") as rf:
+                pre_report = rf.read()
+
+        # 2) 逐账户真实成交
+        executed_any = False
+        for acct in ("main", "lab"):
+            decisions = per_account[acct]["report"].get("decisions", [])
+            survivors = [d["order"] for d in decisions
+                         if d.get("verdict") in ("pass", "clamp")]
+            if not survivors:
+                continue
+
+            if mode == "canary":
+                capped = exec_model.apply_canary_caps(
+                    survivors, per_account[acct]["account_state"],
+                    exec_model.canary_config())
+                # 记录 canary cap 决策进 summary（留痕）
+                summary["accounts"][acct]["canary_caps"] = [
+                    {"code": c["order"].get("code"), "verdict": c["verdict"],
+                     "reason": c["reason"]} for c in capped]
+                survivors = [c["order"] for c in capped
+                             if c.get("verdict") in ("pass", "clamp")]
+                if not survivors:
+                    continue
+
+            result = self._execute_orders(
+                acct, survivors, per_account[acct]["prices"],
+                per_account[acct]["account_state"])
+            trades = result.get("trades", [])
+            if trades:
+                executed_any = True
+                summary["accounts"][acct]["executed"] = len(trades)
+                summary["accounts"][acct]["executed_trades"] = trades
+
+        if not executed_any:
+            summary["ledger_validation_passed"] = True
+            return
+
+        # 3) H2 记账：重跑当日绩效 upsert + 日报，再 strict 校验
+        try:
+            self._refinalize_after_execution(date_str)
+            validation = self._run_ledger_validation(strict=True)
+        except Exception as e:
+            validation = {"status": "error", "error": str(e), "failures": []}
+
+        summary["ledger_validation"] = validation
+        passed = validation.get("status") == "pass"
+        summary["ledger_validation_passed"] = passed
+        if passed:
+            return
+
+        # ── 校验失败 → 回滚本次写入（精确还原预写账户 + 撤销 trade 追加）──────────
+        for acct in ("main", "lab"):
+            p = os.path.join(accounts_dir, f"{acct}.json")
+            if pre_accounts.get(acct) is not None:
+                self._atomic_write_json(p, pre_accounts[acct])
+        if trade_file_preexisted and pre_trade_record is not None:
+            self._atomic_write_json(trade_path, pre_trade_record)
+        elif os.path.exists(trade_path):
+            os.unlink(trade_path)
+        # 还原 perf_history（撤销 _refinalize 的 upsert）与日报，确保回滚后账本三方
+        # 与执行前完全一致，不给 G4 留脏 equity 点。
+        if perf_preexisted and pre_perf is not None:
+            self._atomic_write_json(perf_path, pre_perf)
+        elif os.path.exists(perf_path):
+            os.unlink(perf_path)
+        if report_preexisted and pre_report is not None:
+            with open(report_path, "w", encoding="utf-8") as rf:
+                rf.write(pre_report)
+        elif os.path.exists(report_path):
+            os.unlink(report_path)
+        failed_invs = ", ".join(
+            r.get("inv", "") for r in validation.get("failures", []))
+        summary["degraded_reason"] = (
+            f"ledger validation failed after autonomous execution "
+            f"({failed_invs or validation.get('error', 'unknown')}) — "
+            f"rolled back account/trade writes")
+        # 回滚后实际未成交：执行计数清零，反映真实账本状态。
+        for acct in ("main", "lab"):
+            summary["accounts"][acct]["executed"] = 0
+            summary["accounts"][acct]["rolled_back"] = True
+
+    def _refinalize_after_execution(self, date_str: str) -> None:
+        """H2 fix: after a canary/live write, make trade/perf/report three-way
+        consistent for `date_str`, then they pass strict ledger validation.
+
+        - Upsert the perf entry for date_str using the post-write account
+          daily_pnl_pct (preserving existing hs300/benchmark fields). This
+          satisfies INV-1/INV-3 (perf <acct>_pct == trade snapshot daily_pnl_pct,
+          which _execute_orders wrote from the same account field).
+        - Ensure the daily report exists for date_str (INV-2); the report reader
+          prefers perf_entry pct so report == perf == trade (INV-3).
+        """
+        accounts = {}
+        for acct in ("main", "lab"):
+            accounts[acct] = self._read_json(
+                os.path.join(self.data_dir, "accounts", f"{acct}.json"), {})
+
+        perf_path = os.path.join(
+            self.data_dir, "strategies", "performance_history.json")
+        perf = self._read_json(perf_path, [])
+        if not isinstance(perf, list):
+            perf = []
+        idx = next((i for i, e in enumerate(perf)
+                    if isinstance(e, dict) and e.get("date") == date_str), None)
+        entry = dict(perf[idx]) if idx is not None else {}
+        entry["date"] = date_str
+        entry["main_pct"] = accounts.get("main", {}).get("daily_pnl_pct", entry.get("main_pct", 0))
+        entry["lab_pct"] = accounts.get("lab", {}).get("daily_pnl_pct", entry.get("lab_pct", 0))
+        # 保留 settlement 已写的 benchmark（settlement 在执行之前已 fetch hs300）。
+        # 若今日 perf 条目尚不存在/无 benchmark（如离线），给出 INV-4 可接受的
+        # 已标注占位（hs300_pct=0 + benchmark_note），避免记账后 strict 校验误失败。
+        hs = entry.get("hs300_pct")
+        if hs is None:
+            entry["hs300_pct"] = 0
+            entry["benchmark_note"] = entry.get("benchmark_note") or "api_unavailable"
+            entry["main_beat"] = None
+            entry["lab_beat"] = None
+        if idx is not None:
+            perf[idx] = entry
+        else:
+            perf.append(entry)
+        self._atomic_write_json(perf_path, perf)
+
+        # trade snapshot daily_pnl_pct 必须与 perf 一致（_execute_orders 写的是
+        # account.daily_pnl_pct，与上面 entry 同源）；此处确保 perf 与之对齐即可。
+        self._ensure_daily_report_for_date(date_str)
+
     def run_pre_market_workflow(self) -> Dict:
         """运行盘前工作流"""
         logger.info("开始盘前工作流...")
@@ -552,6 +1299,15 @@ class MultiAgentCoordinator:
                 'output': self.agents['risk_controller'].generate_validation_summary(validation_result)
             })
             
+            # Phase 0b: 把完整计划（含 target_weights + decision）持久化进 workflow JSON
+            # 纯加法：装配失败仅记日志，不污染 workflow warnings/status（不改执行行为）。
+            try:
+                workflow_result['plan'] = self.build_plan_record(
+                    self.agents['execution_planner'], trading_plan, validation_result,
+                )
+            except Exception as e:
+                logger.error(f"装配 plan 记录失败: {e}")
+
             # 最终输出
             decision = validation_result.get('decision', 'REJECTED')
             workflow_result['risk_decision'] = decision
@@ -892,7 +1648,39 @@ class MultiAgentCoordinator:
             unresolved_mistakes = other_mistake_count + unresolved_risk_count
             if unresolved_mistakes:
                 workflow_result['warnings'].append(f"{unresolved_mistakes} 个风控问题待处理")
-            
+
+            # 步骤1.6: 受控自主执行（Phase 3 · 模式感知 shadow/canary/live）
+            # 消费盘前 plan.target_weights → 候选订单 → 过闸；
+            #   shadow → 写影子账本，绝不碰 accounts/trades；
+            #   canary/live → 真实成交 + 记账（H2）+ strict 校验 + 失败回滚。
+            # try/except 包裹，绝不崩 workflow（mirror settlement 容错）。
+            try:
+                execution_summary = self.run_autonomous_execution()
+                workflow_result['execution'] = execution_summary
+                total_candidates = sum(
+                    a.get('candidates', 0) for a in execution_summary.get('accounts', {}).values()
+                )
+                executed = sum(
+                    a.get('executed', 0) for a in execution_summary.get('accounts', {}).values()
+                )
+                gc = execution_summary.get('counts', {})
+                passed = gc.get('pass', 0) + gc.get('clamp', 0)
+                vetoed = gc.get('reject', 0) + gc.get('halt', 0)
+                mode = execution_summary.get('mode')
+                workflow_result['events'].append(
+                    f"自主执行: {mode} | 候选{total_candidates} | "
+                    f"过{passed} | 否决{vetoed}（夹{gc.get('clamp', 0)}/拒{gc.get('reject', 0)}/"
+                    f"停{gc.get('halt', 0)}）| 成交{executed}"
+                )
+                # Phase 4 (修假绿): persist compact execution_decisions view +
+                # surface degraded/rolled-back/halt as a warning (shadow rejects
+                # alone do NOT add a warning).
+                self._apply_execution_observability(workflow_result)
+            except Exception as e:
+                logger.error(f"自主执行失败: {e}")
+                workflow_result['warnings'].append(f"自主执行失败: {e}")
+                workflow_result['execution'] = {'error': str(e)}
+
             # 步骤2: Strategy Maintainer Agent
             logger.info("步骤2: Strategy Maintainer Agent")
             maintainer = self.agents['strategy_maintainer']
@@ -940,6 +1728,10 @@ class MultiAgentCoordinator:
             # ledger state, not the pre-risk-execution settlement snapshot.
             if self._collect_risk_execution_results(workflow_result):
                 try:
+                    daily_report = self._ensure_daily_report_for_date(datetime.now().strftime("%Y-%m-%d"))
+                    workflow_result['daily_report'] = daily_report
+                    if daily_report.get("created"):
+                        workflow_result['events'].append("自动补全盘后日报以满足最终账本校验")
                     final_validation = self._run_ledger_validation(strict=False)
                     workflow_result['final_ledger_validation'] = final_validation
                     workflow_result['final_ledger_validation_passed'] = final_validation.get('status') == 'pass'
@@ -1115,8 +1907,7 @@ class MultiAgentCoordinator:
             else:
                 perf.append(entry)
             
-            with open(perf_path, 'w') as f:
-                json.dump(perf, f, ensure_ascii=False, indent=2)
+            self._atomic_write_json(perf_path, perf)
             
             results['performance_updated'] = True
         except Exception as e:
@@ -1384,6 +2175,38 @@ class MultiAgentCoordinator:
                 results.append(item)
         return results
 
+    def _apply_execution_observability(self, workflow_result: Dict) -> None:
+        """Phase 4 (修假绿): derive a compact, persisted execution_decisions view
+        from the autonomous-execution summary and surface execution truth.
+
+        - workflow_result['execution_decisions'] = build_execution_decisions(summary)
+          (the full 'execution' summary is kept untouched).
+        - Add a warning ONLY for degraded/rolled-back/halt — shadow rejecting
+          candidates is normal and must NOT add a warning (would falsely flip
+          a passing post-market run to 'degraded').
+        Never raises into the caller.
+        """
+        try:
+            from execution_model import (
+                build_execution_decisions,
+                _is_halted,
+                _is_rolled_back_or_degraded,
+            )
+            summary = workflow_result.get('execution')
+            if not isinstance(summary, dict):
+                return
+            workflow_result['execution_decisions'] = build_execution_decisions(summary)
+            if summary.get('error'):
+                return
+            warnings = workflow_result.setdefault('warnings', [])
+            if _is_rolled_back_or_degraded(summary):
+                reason = summary.get('degraded_reason', '已回滚/降级')
+                warnings.append(f"自主执行已回滚/降级: {reason}")
+            elif _is_halted(summary):
+                warnings.append("自主执行已停 (kill-switch/halt) — 仅确定性 reduce-only 运行")
+        except Exception as e:  # pragma: no cover - defensive, never crash workflow
+            logger.error(f"execution observability 失败: {e}")
+
     def _generate_post_market_output(self, review_report: Dict, update_report: Dict, workflow_result: Dict = None) -> str:
         """生成盘后输出"""
         output_parts = []
@@ -1403,7 +2226,20 @@ class MultiAgentCoordinator:
             for event in events:
                 output_parts.append(f"  • {event}")
             output_parts.append("")
-        
+
+        # Phase 4 (修假绿): execution-truth block — make halt/rollback/shadow
+        # unambiguous so cron "ok" never masks rejected-everything / rolled-back.
+        execution_summary = workflow_result.get('execution')
+        if isinstance(execution_summary, dict):
+            try:
+                from execution_model import format_execution_summary
+                exec_block = format_execution_summary(execution_summary)
+                if exec_block:
+                    output_parts.append(exec_block)
+                    output_parts.append("")
+            except Exception as e:  # pragma: no cover - never crash output
+                logger.error(f"format_execution_summary 失败: {e}")
+
         # P2: 显示减仓建议
         risk_actions = workflow_result.get('risk_reduction_actions', [])
         if risk_actions:
@@ -1663,6 +2499,32 @@ class MultiAgentCoordinator:
         except Exception as e:
             logger.error(f"保存工作流结果失败: {e}")
 
+    def sync_to_site(self) -> Dict:
+        """Fire-and-forget site sync. Errors are isolated, never raise."""
+        import subprocess
+        script = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "scripts", "sync_to_site.py",
+        )
+        try:
+            proc = subprocess.run(
+                [sys.executable, script],
+                capture_output=True, text=True, timeout=180,
+            )
+            if proc.returncode == 0:
+                try:
+                    return json.loads(proc.stdout.strip().splitlines()[-1])
+                except (json.JSONDecodeError, IndexError):
+                    return {"success": False, "error": "unparseable output", "stdout": proc.stdout[-200:]}
+            else:
+                return {"success": False, "error": f"exit {proc.returncode}", "stderr": proc.stderr[-200:]}
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": "timeout after 180s"}
+        except FileNotFoundError:
+            return {"success": False, "error": f"script not found: {script}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 def main():
     """主函数"""
     import argparse
@@ -1695,6 +2557,14 @@ def main():
     
     # 保存结果
     coordinator.save_workflow_result(result)
+
+    # 自动同步到网站 (fire-and-forget, errors logged but never fail the workflow)
+    try:
+        site_result = coordinator.sync_to_site()
+        if not site_result.get("success"):
+            logger.warning(f"站点同步未完全成功: {site_result.get('error', 'unknown')}")
+    except Exception as e:
+        logger.warning(f"站点同步调用异常(已隔离): {e}")
 
 if __name__ == "__main__":
     main()

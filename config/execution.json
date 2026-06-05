@@ -1,0 +1,24 @@
+{
+  "mode": "shadow",
+  "eps": 0.005,
+  "kill_switch_path": "EXECUTION_HALT",
+  "gates": {
+    "max_orders": 5,
+    "min_order_amount": 1000,
+    "price_deviation": 0.1,
+    "whitelist": null,
+    "drawdown_stop": -0.12,
+    "monthly_loss_stop": -0.08,
+    "consec_losing_sells": 5,
+    "turnover_warn": 0.40,
+    "turnover_block": 0.75,
+    "soft_brake_net_sell": 0.15
+  },
+  "canary": {
+    "per_order": 0.02,
+    "max_buys": 1,
+    "max_sells": 1,
+    "daily_turnover": 0.04
+  },
+  "per_account": {}
+}

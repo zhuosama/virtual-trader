@@ -129,6 +129,89 @@ class ExecutionPlannerAgent:
 
         return plan
 
+    def compute_target_weights(self, account_type: str, plan: Dict) -> Dict[str, float]:
+        """把命令式 plan + 当前持仓翻译成单账户目标权重 {code: weight}。
+
+        Phase 0 数据契约：纯函数式读 self.accounts[account_type] / self.strategies，
+        供 ExecutionModel 做 target→diff。weight = 目标市值 / 账户总资产。
+
+        语义（见设计 §12 Phase 0a）：
+          1. 起始权重 = 当前持仓 {code: market_value / total_value}。
+          2. total_position = plan['position_sizing']['total_position']（缺省 1.0）；
+             max_single = strategies[f'{account_type}_strategy']['rules']
+                                    ['position_sizing']['max_single_position']（缺省 1.0）。
+          3. 逐条 action（account ∈ {account_type, 'both'}）：
+             - buy: weights[code] = position_size（缺省 0.0）。
+             - sell / clear: weights[code] = 0.0。
+             - reduce_position code=='ALL': 当前总仓 cur 若 > total_position 且 >0，
+               按 total_position/cur 整体缩放；否则 no-op（减仓不增仓）。
+             - reduce_position 具体 code: weights[code] *= 0.5。
+             - hold: no-op。
+          4. 丢弃 weight <= 0 的项。
+          5. 单票夹逼 min(w, max_single)。
+          6. 总仓夹逼：若 sum > total_position 且 sum>0，按 total_position/sum 缩放。
+        """
+        acct = self.accounts.get(account_type, {})
+        total_value = acct.get('total_value', 0) or 0
+        weights: Dict[str, float] = {}
+        if total_value <= 0:
+            return weights
+
+        # 1. 起始：当前持仓权重
+        for pos in acct.get('positions', []):
+            weights[pos['code']] = pos.get('market_value', 0) / total_value
+
+        # 2. 读取夹逼参数
+        position_sizing = plan.get('position_sizing', {}) or {}
+        total_position = position_sizing.get('total_position', 1.0)
+        if total_position is None:
+            total_position = 1.0
+        strat = self.strategies.get(f'{account_type}_strategy', {}) or {}
+        max_single = (
+            strat.get('rules', {})
+            .get('position_sizing', {})
+            .get('max_single_position', 1.0)
+        )
+        if max_single is None:
+            max_single = 1.0
+
+        # 3. 逐条 action
+        for action in plan.get('actions', []) or []:
+            if action.get('account') not in (account_type, 'both'):
+                continue
+            act = action.get('action')
+            code = action.get('code')
+            if act == 'buy':
+                weights[code] = action.get('position_size', 0.0) or 0.0
+            elif act in ('sell', 'clear'):
+                weights[code] = 0.0
+            elif act == 'reduce_position':
+                if code == 'ALL':
+                    cur = sum(weights.values())
+                    if cur > total_position and cur > 0:
+                        factor = total_position / cur
+                        for c in list(weights):
+                            weights[c] = weights[c] * factor
+                    # else: no-op，减仓绝不增仓
+                else:
+                    weights[code] = weights.get(code, 0) * 0.5
+            elif act == 'hold':
+                pass
+
+        # 4. 丢弃非正权重
+        weights = {c: w for c, w in weights.items() if w > 0}
+
+        # 5. 单票夹逼
+        weights = {c: min(w, max_single) for c, w in weights.items()}
+
+        # 6. 总仓夹逼
+        total = sum(weights.values())
+        if total > total_position and total > 0:
+            factor = total_position / total
+            weights = {c: w * factor for c, w in weights.items()}
+
+        return weights
+
     def _generate_bullish_plan(self, sector_strength: List[Dict], risk_signals: List[str]) -> Dict:
         """生成看涨计划"""
         logger.info("生成看涨市场计划...")
