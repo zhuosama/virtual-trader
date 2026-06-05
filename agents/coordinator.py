@@ -951,7 +951,9 @@ class MultiAgentCoordinator:
             if pct is None or not month:
                 continue
             try:
-                equity *= (1.0 + float(pct))
+                # <acct>_pct 以"百分数"存储（-0.78 == -0.78%），故 /100 复利，
+                # 否则把 -0.78 当 -78%/日 会伪造 ~-90% 回撤、G4 永久 halt 自主买入。
+                equity *= (1.0 + float(pct) / 100.0)
             except (TypeError, ValueError):
                 continue
             by_month.setdefault(month, []).append(equity)
