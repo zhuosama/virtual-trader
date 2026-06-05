@@ -1,5 +1,5 @@
 {
-  "mode": "shadow",
+  "mode": "canary",
   "eps": 0.005,
   "kill_switch_path": "EXECUTION_HALT",
   "gates": {
