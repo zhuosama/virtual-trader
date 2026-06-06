@@ -213,6 +213,42 @@ class TestSettlementIdempotent(unittest.TestCase):
             after = json.load(f)
         self.assertEqual(after, before)
 
+    def test_performance_write_failure_preserves_existing_json(self):
+        """A partial performance_history write failure must not corrupt the existing ledger."""
+        from coordinator import MultiAgentCoordinator
+
+        tmpdir = self._make_env()
+        perf_path = os.path.join(tmpdir, "strategies", "performance_history.json")
+        before = [{
+            "date": "2026-05-14",
+            "main_pct": 0.1,
+            "lab_pct": 0.2,
+            "hs300_pct": 0.3,
+        }]
+        with open(perf_path, "w") as f:
+            json.dump(before, f)
+
+        original_dump = json.dump
+
+        def fail_perf_dump(obj, fp, *args, **kwargs):
+            if os.path.basename(fp.name).startswith("performance_history.json"):
+                fp.write("[")
+                raise RuntimeError("simulated partial write")
+            return original_dump(obj, fp, *args, **kwargs)
+
+        c = MultiAgentCoordinator.__new__(MultiAgentCoordinator)
+        c.data_dir = tmpdir
+        c.agents = {}
+
+        with patch("subprocess.run", side_effect=self._fake_market_run):
+            with patch("json.dump", side_effect=fail_perf_dump):
+                result = c.run_settlement()
+
+        self.assertFalse(result["performance_updated"])
+        with open(perf_path) as f:
+            after = json.load(f)
+        self.assertEqual(after, before)
+
 
 class TestSettlementDegradedReason(unittest.TestCase):
     """settlement must return degraded_reason when no prices updated."""

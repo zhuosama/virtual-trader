@@ -24,3 +24,62 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Tushare credentials (H49a script reads these as fallback paths)
+scripts/.tushare_token
+agents/config.yaml
+
+# H50a raw per-ticker Tushare cache (re-fetchable, large)
+data/cn_pit/raw/h50a_tushare_*/
+
+# H51a raw per-ticker Tushare daily cache (re-fetchable, large)
+data/cn_pit/raw/h51a_tushare_daily/
+
+# H52a raw per-snapshot Tushare index_weight cache (re-fetchable)
+data/cn_pit/raw/h52a_tushare_index_weight/
+
+# H52b raw per-industry Tushare SW L1 index_member cache (re-fetchable)
+data/cn_pit/raw/h52b_tushare_sw_industry/
+
+# H52c raw per-trade_date Tushare daily + adj_factor + index_daily cache (re-fetchable)
+data/cn_pit/raw/h52c_tushare_*/
+
+# H52d raw per-ticker per-endpoint Tushare cache (re-fetchable, ~104 files)
+data/cn_pit/raw/h52d_tushare_*/*
+
+# === New rules from repo-hygiene-2026-06-06 ===
+
+# Agent workflow run artifacts (regenerated each pre/post-market run)
+agents/workflows/
+
+# Hermes runtime state (plans, etc.)
+.hermes/
+
+# Generated charts (re-rendered by generate_charts.py)
+reports/charts/
+
+# Daily generated reports
+reports/daily/
+
+# Regenerable research reports
+reports/*.md
+
+# Regenerable backtest runs
+backtest/runs/
+
+# Regenerable factor cache (downloaded from upstream)
+backtest/factors/
+
+# Regenerable data artifacts (re-fetchable from Tushare API)
+data/cn_pit/
+
+# generated output + logs
+output/
+logs/
+
+# value_account generated dirs
+value_account/logs/
+value_account/reports/
+
+# sec_edgar cache
+sec_edgar/cache/

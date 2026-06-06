@@ -21,6 +21,24 @@ class ProviderResult:
     cache_oldest_age_days: Optional[int] = None
     adjustment: str = "qfq"
     reason: Optional[str] = None
+    fallback_reason: Optional[str] = None
+    precheck_log: List[str] = field(default_factory=list)
+    fallback_chain: List[str] = field(default_factory=list)
+
+
+@dataclass
+class OHLCVResult:
+    status: str
+    ohlcv: pd.DataFrame
+    sources_tried: List[str] = field(default_factory=list)
+    sources_used: Dict[str, str] = field(default_factory=dict)
+    missing_pairs: List[tuple] = field(default_factory=list)
+    fallback_chain: List[str] = field(default_factory=list)
+    fallback_reason: Optional[str] = None
+    precheck_log: List[str] = field(default_factory=list)
+    sha256: Optional[str] = None
+    adjustment: str = "qfq"
+    reason: Optional[str] = None
 
 
 @dataclass
@@ -78,15 +96,74 @@ def is_cache_fresh(meta: CacheEntryMeta, today: Optional[datetime] = None) -> bo
     return age_days <= 20
 
 
+SOURCE_PROVIDERS: frozenset[str] = frozenset({
+    "tushare:pro_bar:qfq",
+    "tushare:daily",
+    "akshare:stock_zh_a_hist",
+    "akshare:stock_zh_a_hist_qfq",
+    "baostock:query_history_k_data_plus",
+    "yfinance:download",
+    "static:in_memory",
+    "cache:local_csv",
+    "fallback:composite",
+})
+
+
+class LoaderBlockedError(RuntimeError):
+    def __init__(self, provider: str, reason: str):
+        self.provider = provider
+        self.reason = reason
+        super().__init__(f"[BLOCKER:loader] provider={provider} reason={reason}")
+
+
+def compute_prices_sha256(prices: pd.DataFrame) -> str:
+    """Stable sha256 over a price frame. Used for audit at write and at compare."""
+    import hashlib
+
+    payload = prices.to_csv(index=True).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def compute_ohlcv_sha256(ohlcv: pd.DataFrame) -> str:
+    """Stable sha256 over an OHLV frame. Used for audit at write and at compare."""
+    import hashlib
+
+    frame = ohlcv.sort_values(by=["date", "ticker"]).reset_index(drop=True)
+    payload = frame.to_csv(index=False).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+class ChecksumMismatchError(RuntimeError):
+    def __init__(self, expected: str, actual: str, context: str):
+        super().__init__(
+            f"[BLOCKER:checksum] context={context} expected={expected[:12]}... actual={actual[:12]}..."
+        )
+
+
 class MarketDataProvider:
     name = "base"
+
+    def precheck(self) -> None:
+        """Raise LoaderBlockedError if this provider can't run (missing token, missing library, missing endpoint).
+        Default: no-op. Subclasses override."""
+        return None
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.name not in SOURCE_PROVIDERS:
+            raise ValueError(
+                f"provider name '{cls.name}' ({cls.__name__}) not in SOURCE_PROVIDERS"
+            )
 
     def get_close_prices(self, tickers: Iterable[str], start: str, end: str) -> ProviderResult:
         raise NotImplementedError
 
+    def get_ohlcv(self, tickers: Iterable[str], start: str, end: str) -> OHLCVResult:
+        raise NotImplementedError(f"{self.name} does not implement get_ohlcv")
+
 
 class StaticPriceProvider(MarketDataProvider):
-    name = "static"
+    name = "static:in_memory"
 
     def __init__(self, prices: pd.DataFrame):
         self._prices = prices.copy()
@@ -112,7 +189,7 @@ class StaticPriceProvider(MarketDataProvider):
 
 
 class CachedPriceProvider(MarketDataProvider):
-    name = "cache"
+    name = "cache:local_csv"
 
     def __init__(self, cache_dir: str, adjustment: str = "qfq", today: Optional[datetime] = None):
         self.cache_dir = cache_dir
@@ -170,51 +247,135 @@ class CachedPriceProvider(MarketDataProvider):
 
 
 class FallbackMarketDataProvider(MarketDataProvider):
-    name = "fallback"
+    name = "fallback:composite"
 
     def __init__(self, providers: List[MarketDataProvider]):
         self.providers = providers
 
     def get_close_prices(self, tickers: Iterable[str], start: str, end: str) -> ProviderResult:
+        import sys
         wanted = list(tickers)
-        remaining = list(wanted)
-        combined = []
-        sources_tried = []
-        sources_used = {}
-        cache_hits = []
-        cache_ages = []
+        precheck_log: List[str] = []
+        fallback_chain: List[str] = []
+        fallback_reason: Optional[str] = None
+        sources_tried: List[str] = []
         adjustment = "qfq"
 
         for provider in self.providers:
-            if not remaining:
-                break
-            result = provider.get_close_prices(remaining, start, end)
+            fallback_chain.append(provider.name)
+
+            # --- precheck ---
+            try:
+                provider.precheck()
+            except LoaderBlockedError as e:
+                entry = f"precheck-blocked={provider.name} reason={e.reason}"
+                precheck_log.append(entry)
+                print(f"[WARN loader] {entry}", file=sys.stderr)
+                fallback_reason = f"precheck-blocked: {provider.name}"
+                sources_tried.append(provider.name)
+                continue
+
+            # --- precheck passed: call provider ---
+            result = provider.get_close_prices(wanted, start, end)
             sources_tried.extend(result.sources_tried or [provider.name])
             adjustment = result.adjustment or adjustment
-            if result.cache_hit_ratio:
-                cache_hits.append(result.cache_hit_ratio)
-            if result.cache_oldest_age_days is not None:
-                cache_ages.append(result.cache_oldest_age_days)
-            if not result.prices.empty:
-                combined.append(result.prices)
-                sources_used.update(result.sources_used)
-            remaining = [symbol for symbol in wanted if symbol not in sources_used]
 
-        prices = pd.concat(combined, axis=1) if combined else pd.DataFrame()
-        if not prices.empty:
-            prices = prices.loc[:, [c for c in wanted if c in prices.columns]]
-        missing = [symbol for symbol in wanted if symbol not in sources_used]
-        return ProviderResult(
-            status="OK" if not missing and not prices.empty else "INFRA_ERROR",
-            reason=None if not missing and not prices.empty else "NO_PRICE_DATA",
-            prices=prices,
-            sources_tried=list(dict.fromkeys(sources_tried)),
-            sources_used=sources_used,
-            missing_symbols=missing,
-            cache_hit_ratio=max(cache_hits) if cache_hits else 0.0,
-            cache_oldest_age_days=max(cache_ages) if cache_ages else None,
-            adjustment=adjustment,
-        )
+            if not result.prices.empty:
+                # First data-bearing provider → return immediately
+                combined = [result.prices]
+                prices = pd.concat(combined, axis=1)
+                prices = prices.loc[:, [c for c in wanted if c in prices.columns]]
+                missing = [symbol for symbol in wanted if symbol not in result.sources_used]
+                sources_used = dict(result.sources_used)
+                sources_used["__selected"] = provider.name
+                sources_used["__sha256"] = compute_prices_sha256(prices)
+
+                cache_hits = []
+                cache_ages = []
+                if result.cache_hit_ratio:
+                    cache_hits.append(result.cache_hit_ratio)
+                if result.cache_oldest_age_days is not None:
+                    cache_ages.append(result.cache_oldest_age_days)
+
+                return ProviderResult(
+                    status="OK" if not missing else "INFRA_ERROR",
+                    reason=None if not missing else "NO_PRICE_DATA",
+                    prices=prices,
+                    sources_tried=list(dict.fromkeys(sources_tried)),
+                    sources_used=sources_used,
+                    missing_symbols=missing,
+                    cache_hit_ratio=max(cache_hits) if cache_hits else 0.0,
+                    cache_oldest_age_days=max(cache_ages) if cache_ages else None,
+                    adjustment=adjustment,
+                    fallback_reason=fallback_reason,
+                    precheck_log=precheck_log,
+                    fallback_chain=fallback_chain,
+                )
+            else:
+                # Empty data from a provider that passed precheck → valid fallback signal
+                fallback_reason = f"empty-data: {provider.name}"
+                # Continue to next provider
+
+        # All providers exhausted
+        raise LoaderBlockedError("fallback", f"all providers exhausted: {precheck_log}")
+
+    def get_ohlcv(self, tickers: Iterable[str], start: str, end: str) -> OHLCVResult:
+        """Mirror of get_close_prices fallback semantics — precheck loop,
+        first-success-wins, STOP-on-exhausted via LoaderBlockedError.
+        """
+        import sys
+        wanted = list(tickers)
+        precheck_log: List[str] = []
+        fallback_chain: List[str] = []
+        fallback_reason: Optional[str] = None
+        sources_tried: List[str] = []
+        adjustment = "qfq"
+
+        for provider in self.providers:
+            fallback_chain.append(provider.name)
+
+            # --- precheck ---
+            try:
+                provider.precheck()
+            except LoaderBlockedError as e:
+                entry = f"precheck-blocked={provider.name} reason={e.reason}"
+                precheck_log.append(entry)
+                print(f"[WARN loader] {entry}", file=sys.stderr)
+                fallback_reason = f"precheck-blocked: {provider.name}"
+                sources_tried.append(provider.name)
+                continue
+
+            # --- precheck passed: call provider ---
+            result = provider.get_ohlcv(wanted, start, end)
+            sources_tried.extend(result.sources_tried or [provider.name])
+            adjustment = result.adjustment or adjustment
+
+            if not result.ohlcv.empty:
+                # First data-bearing provider → return immediately
+                sha = compute_ohlcv_sha256(result.ohlcv)
+                sources_used = dict(result.sources_used)
+                sources_used["__selected"] = provider.name
+                sources_used["__sha256"] = sha
+                return OHLCVResult(
+                    status=result.status if result.status == "INFRA_ERROR" else "OK",
+                    ohlcv=result.ohlcv,
+                    sources_tried=list(dict.fromkeys(sources_tried)),
+                    sources_used=sources_used,
+                    missing_pairs=list(result.missing_pairs),
+                    fallback_chain=fallback_chain,
+                    fallback_reason=fallback_reason,
+                    precheck_log=precheck_log,
+                    sha256=sha,
+                    adjustment=adjustment,
+                    reason=result.reason,
+                )
+            else:
+                # Empty data from a provider that passed precheck → valid fallback signal
+                fallback_reason = f"empty-data: {provider.name}"
+                # Continue to next provider
+
+        # All providers exhausted
+        raise LoaderBlockedError("fallback", f"all OHLCV providers exhausted: {precheck_log}")
 
 
 def _optional_import(module_name: str):
@@ -243,7 +404,13 @@ def _normalize_series_frame(series_by_symbol: Dict[str, pd.Series]) -> pd.DataFr
 
 
 class AkshareProvider(MarketDataProvider):
-    name = "akshare"
+    name = "akshare:stock_zh_a_hist_qfq"
+
+    def precheck(self) -> None:
+        try:
+            import akshare  # noqa: F401
+        except ImportError:
+            raise LoaderBlockedError(self.name, "akshare library not installed")
 
     def __init__(self, adjustment: str = "qfq"):
         self.adjustment = adjustment
@@ -296,9 +463,109 @@ class AkshareProvider(MarketDataProvider):
             adjustment=self.adjustment,
         )
 
+    def get_ohlcv(self, tickers: Iterable[str], start: str, end: str) -> OHLCVResult:
+        import sys as _sys
+        ak = _optional_import("akshare")
+        wanted = list(tickers)
+        if ak is None:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason="PROVIDER_UNAVAILABLE",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment=self.adjustment,
+            )
+
+        frames: List[pd.DataFrame] = []
+        missing_pairs: List[tuple] = []
+        for ticker in wanted:
+            code = to_plain_code(ticker)
+
+            def fetch_one():
+                return ak.stock_zh_a_hist(
+                    symbol=code,
+                    period="daily",
+                    start_date=start.replace("-", ""),
+                    end_date=end.replace("-", ""),
+                    adjust=self.adjustment,
+                )
+
+            try:
+                data = _with_retries(fetch_one)
+                if data.empty:
+                    print(
+                        f"[WARN provider] akshare:stock_zh_a_hist_qfq ticker={ticker} reason=empty",
+                        file=_sys.stderr,
+                    )
+                    missing_pairs.append((None, ticker))
+                    continue
+                # Normalize Akshare Chinese column names → canonical OHLCV
+                data = data.rename(columns={
+                    "日期": "date",
+                    "开盘": "open",
+                    "最高": "high",
+                    "最低": "low",
+                    "收盘": "close",
+                    "成交量": "volume",
+                    "成交额": "amount",
+                })
+                data["date"] = pd.to_datetime(data["date"])
+                data["ticker"] = ticker
+                ohlcv_cols = ["date", "ticker", "open", "high", "low", "close", "volume", "amount"]
+                frames.append(data[ohlcv_cols])
+            except Exception as exc:
+                print(
+                    f"[WARN provider] akshare:stock_zh_a_hist_qfq ticker={ticker} reason=exception:{exc}",
+                    file=_sys.stderr,
+                )
+                missing_pairs.append((None, ticker))
+
+        # Status: >50% of tickers failed → INFRA_ERROR (bulk fetch broken)
+        fail_count = len(missing_pairs)
+        total = len(wanted)
+        if fail_count > total / 2:
+            status = "INFRA_ERROR"
+            reason = f"PER_TICKER_FAILURE: {fail_count}/{total} tickers failed"
+        elif fail_count > 0:
+            status = "OK"
+            reason = f"PARTIAL_DATA: {fail_count}/{total} tickers missing"
+        else:
+            status = "OK"
+            reason = None
+
+        if not frames:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason=reason or "NO_PRICE_DATA",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment=self.adjustment,
+                missing_pairs=missing_pairs,
+            )
+
+        ohlcv = pd.concat(frames, ignore_index=True).sort_values(["date", "ticker"]).reset_index(drop=True)
+        sha = compute_ohlcv_sha256(ohlcv)
+        successful = [t for t in wanted if (None, t) not in missing_pairs]
+        return OHLCVResult(
+            status=status,
+            ohlcv=ohlcv,
+            sources_tried=[self.name],
+            sources_used={t: self.name for t in successful},
+            missing_pairs=missing_pairs,
+            sha256=sha,
+            adjustment=self.adjustment,
+            reason=reason,
+        )
+
 
 class BaoStockProvider(MarketDataProvider):
-    name = "baostock"
+    name = "baostock:query_history_k_data_plus"
+
+    def precheck(self) -> None:
+        try:
+            import baostock  # noqa: F401
+        except ImportError:
+            raise LoaderBlockedError(self.name, "baostock library not installed")
 
     def __init__(self, adjustment: str = "qfq"):
         self.adjustment = adjustment
@@ -358,9 +625,106 @@ class BaoStockProvider(MarketDataProvider):
             adjustment=self.adjustment,
         )
 
+    def get_ohlcv(self, tickers: Iterable[str], start: str, end: str) -> OHLCVResult:
+        import sys as _sys
+        bs = _optional_import("baostock")
+        wanted = list(tickers)
+        if bs is None:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason="PROVIDER_UNAVAILABLE",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment=self.adjustment,
+            )
+
+        frames: List[pd.DataFrame] = []
+        missing_pairs: List[tuple] = []
+        try:
+            bs.login()
+            for ticker in wanted:
+                try:
+                    rs = bs.query_history_k_data_plus(
+                        to_baostock_symbol(ticker),
+                        "date,code,open,high,low,close,volume,amount",
+                        start_date=start,
+                        end_date=end,
+                        frequency="d",
+                        adjustflag="2" if self.adjustment == "qfq" else "1" if self.adjustment == "hfq" else "3",
+                    )
+                    rows = []
+                    while rs.error_code == "0" and rs.next():
+                        rows.append(rs.get_row_data())
+                    if not rows:
+                        print(
+                            f"[WARN provider] baostock:query_history_k_data_plus ticker={ticker} reason=empty",
+                            file=_sys.stderr,
+                        )
+                        missing_pairs.append((None, ticker))
+                        continue
+                    frame = pd.DataFrame(rows, columns=["date", "code", "open", "high", "low", "close", "volume", "amount"])
+                    for col in ["open", "high", "low", "close", "volume", "amount"]:
+                        frame[col] = pd.to_numeric(frame[col], errors="coerce")
+                    frame["date"] = pd.to_datetime(frame["date"])
+                    frame["ticker"] = ticker
+                    ohlcv_cols = ["date", "ticker", "open", "high", "low", "close", "volume", "amount"]
+                    frames.append(frame[ohlcv_cols])
+                except Exception as exc:
+                    print(
+                        f"[WARN provider] baostock:query_history_k_data_plus ticker={ticker} reason=exception:{exc}",
+                        file=_sys.stderr,
+                    )
+                    missing_pairs.append((None, ticker))
+        finally:
+            try:
+                bs.logout()
+            except Exception:
+                pass
+
+        # Status: >50% of tickers failed → INFRA_ERROR (bulk fetch broken)
+        fail_count = len(missing_pairs)
+        total = len(wanted)
+        if fail_count > total / 2:
+            status = "INFRA_ERROR"
+            reason = f"PER_TICKER_FAILURE: {fail_count}/{total} tickers failed"
+        elif fail_count > 0:
+            status = "OK"
+            reason = f"PARTIAL_DATA: {fail_count}/{total} tickers missing"
+        else:
+            status = "OK"
+            reason = None
+
+        if not frames:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason=reason or "NO_PRICE_DATA",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment=self.adjustment,
+                missing_pairs=missing_pairs,
+            )
+
+        ohlcv = pd.concat(frames, ignore_index=True).sort_values(["date", "ticker"]).reset_index(drop=True)
+        sha = compute_ohlcv_sha256(ohlcv)
+        successful = [t for t in wanted if (None, t) not in missing_pairs]
+        return OHLCVResult(
+            status=status,
+            ohlcv=ohlcv,
+            sources_tried=[self.name],
+            sources_used={t: self.name for t in successful},
+            missing_pairs=missing_pairs,
+            sha256=sha,
+            adjustment=self.adjustment,
+            reason=reason,
+        )
+
 
 class TushareProvider(MarketDataProvider):
-    name = "tushare"
+    name = "tushare:daily"
+
+    def precheck(self) -> None:
+        if not os.environ.get("TUSHARE_TOKEN"):
+            raise LoaderBlockedError(self.name, "TUSHARE_TOKEN env var missing")
 
     def __init__(self, token: Optional[str] = None, adjustment: str = "qfq"):
         self.token = token or os.environ.get("TUSHARE_TOKEN")
@@ -410,9 +774,98 @@ class TushareProvider(MarketDataProvider):
             adjustment=self.adjustment,
         )
 
+    def get_ohlcv(self, tickers: Iterable[str], start: str, end: str) -> OHLCVResult:
+        import sys as _sys
+        ts = _optional_import("tushare")
+        wanted = list(tickers)
+        if ts is None or not self.token:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason="PROVIDER_UNAVAILABLE",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment=self.adjustment,
+            )
+
+        pro = ts.pro_api(self.token)
+        frames: List[pd.DataFrame] = []
+        missing_pairs: List[tuple] = []
+        for ticker in wanted:
+            try:
+                frame = _with_retries(
+                    lambda: pro.daily(
+                        ts_code=to_tushare_symbol(ticker),
+                        start_date=start.replace("-", ""),
+                        end_date=end.replace("-", ""),
+                    )
+                )
+                if frame.empty:
+                    print(
+                        f"[WARN provider] tushare:daily ticker={ticker} reason=empty",
+                        file=_sys.stderr,
+                    )
+                    missing_pairs.append((None, ticker))
+                    continue
+                # Normalize Tushare schema → canonical OHLCV:
+                #   trade_date → date, vol → volume, drop ts_code (use input ticker)
+                frame = frame.rename(columns={"trade_date": "date", "vol": "volume"})
+                frame["date"] = pd.to_datetime(frame["date"])
+                frame["ticker"] = ticker
+                ohlcv_cols = ["date", "ticker", "open", "high", "low", "close", "volume", "amount"]
+                frames.append(frame[ohlcv_cols])
+            except Exception as exc:
+                print(
+                    f"[WARN provider] tushare:daily ticker={ticker} reason=exception:{exc}",
+                    file=_sys.stderr,
+                )
+                missing_pairs.append((None, ticker))
+
+        # Status: >50% of tickers failed → INFRA_ERROR (bulk fetch broken)
+        fail_count = len(missing_pairs)
+        total = len(wanted)
+        if fail_count > total / 2:
+            status = "INFRA_ERROR"
+            reason = f"PER_TICKER_FAILURE: {fail_count}/{total} tickers failed"
+        elif fail_count > 0:
+            status = "OK"
+            reason = f"PARTIAL_DATA: {fail_count}/{total} tickers missing"
+        else:
+            status = "OK"
+            reason = None
+
+        if not frames:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason=reason or "NO_PRICE_DATA",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment=self.adjustment,
+                missing_pairs=missing_pairs,
+            )
+
+        ohlcv = pd.concat(frames, ignore_index=True).sort_values(["date", "ticker"]).reset_index(drop=True)
+        sha = compute_ohlcv_sha256(ohlcv)
+        successful = [t for t in wanted if (None, t) not in missing_pairs]
+        return OHLCVResult(
+            status=status,
+            ohlcv=ohlcv,
+            sources_tried=[self.name],
+            sources_used={t: self.name for t in successful},
+            missing_pairs=missing_pairs,
+            sha256=sha,
+            adjustment=self.adjustment,
+            reason=reason,
+        )
+
 
 class YFinanceProvider(MarketDataProvider):
-    name = "yfinance"
+    name = "yfinance:download"
+
+    def precheck(self) -> None:
+        try:
+            import yfinance  # noqa: F401
+        except ImportError:
+            raise LoaderBlockedError(self.name, "yfinance library not installed")
 
     def get_close_prices(self, tickers: Iterable[str], start: str, end: str) -> ProviderResult:
         wanted = list(tickers)
@@ -439,4 +892,128 @@ class YFinanceProvider(MarketDataProvider):
             sources_used={t: self.name for t in available},
             missing_symbols=missing,
             adjustment="qfq",
+        )
+
+    def get_ohlcv(self, tickers: Iterable[str], start: str, end: str) -> OHLCVResult:
+        """Return long-format OHLCV via yfinance daily download.
+
+        NOTE: YFinance does NOT provide 成交额 (amount/turnover).  The ``amount``
+        column is filled with NaN.  Callers that need amount should use a provider
+        that supplies it (Tushare / Akshare / BaoStock).
+        """
+        import sys as _sys
+        wanted = list(tickers)
+        yf = _optional_import("yfinance")
+        if yf is None:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason="PROVIDER_UNAVAILABLE",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+            )
+
+        data = yf.download(wanted, start=start, end=end, progress=False, interval="1d")
+        if data.empty:
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason="NO_PRICE_DATA",
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment="qfq",
+            )
+
+        is_multi = isinstance(data.columns, pd.MultiIndex)
+        frames: List[pd.DataFrame] = []
+        missing_pairs: List[tuple] = []
+
+        for ticker in wanted:
+            try:
+                if is_multi:
+                    if ticker not in data.columns.get_level_values(1):
+                        print(
+                            f"[WARN provider] yfinance:download ticker={ticker} reason=empty",
+                            file=_sys.stderr,
+                        )
+                        missing_pairs.append((None, ticker))
+                        continue
+                    row = pd.DataFrame({
+                        "date": data.index,
+                        "ticker": ticker,
+                        "open": data[("Open", ticker)],
+                        "high": data[("High", ticker)],
+                        "low": data[("Low", ticker)],
+                        "close": data[("Close", ticker)],
+                        "volume": data[("Volume", ticker)],
+                    })
+                else:
+                    # Single-ticker download → flat columns
+                    row = pd.DataFrame({
+                        "date": data.index,
+                        "ticker": ticker,
+                        "open": data["Open"],
+                        "high": data["High"],
+                        "low": data["Low"],
+                        "close": data["Close"],
+                        "volume": data["Volume"],
+                    })
+                # YFinance does NOT provide amount (成交额); fill with NaN
+                row["amount"] = float("nan")
+                row = row.dropna(subset=["open", "close"])
+                if not row.empty:
+                    frames.append(row.reset_index(drop=True))
+                else:
+                    print(
+                        f"[WARN provider] yfinance:download ticker={ticker} reason=empty",
+                        file=_sys.stderr,
+                    )
+                    missing_pairs.append((None, ticker))
+            except Exception as exc:
+                print(
+                    f"[WARN provider] yfinance:download ticker={ticker} reason=exception:{exc}",
+                    file=_sys.stderr,
+                )
+                missing_pairs.append((None, ticker))
+
+        # Status: >50% of tickers failed → INFRA_ERROR (bulk fetch broken)
+        fail_count = len(missing_pairs)
+        total = len(wanted)
+        if fail_count > total / 2:
+            status = "INFRA_ERROR"
+            reason = f"PER_TICKER_FAILURE: {fail_count}/{total} tickers failed"
+        elif fail_count > 0:
+            status = "OK"
+            reason = f"PARTIAL_DATA: {fail_count}/{total} tickers missing"
+        else:
+            status = "OK"
+            reason = None
+
+        reason_note = "YFinance does not provide amount (成交额); amount column is NaN"
+        if reason:
+            reason = f"{reason}; {reason_note}"
+        else:
+            reason = reason_note
+
+        if not frames:
+            reason = reason or "NO_PRICE_DATA"
+            return OHLCVResult(
+                status="INFRA_ERROR",
+                reason=reason,
+                ohlcv=pd.DataFrame(),
+                sources_tried=[self.name],
+                adjustment="qfq",
+                missing_pairs=missing_pairs,
+            )
+
+        ohlcv = pd.concat(frames, ignore_index=True).sort_values(["date", "ticker"]).reset_index(drop=True)
+        sha = compute_ohlcv_sha256(ohlcv)
+        successful = [t for t in wanted if (None, t) not in missing_pairs]
+        return OHLCVResult(
+            status=status,
+            ohlcv=ohlcv,
+            sources_tried=[self.name],
+            sources_used={t: self.name for t in successful},
+            missing_pairs=missing_pairs,
+            sha256=sha,
+            adjustment="qfq",
+            reason=reason,
         )

@@ -223,6 +223,24 @@ class TestCoordinatorAuditFlow(unittest.TestCase):
             queued = json.load(f)
         self.assertEqual(queued[0]["expires_at"], "2026-05-18T23:59:59")
 
+    def test_is_trading_day_uses_local_price_calendar_for_known_holidays(self):
+        import coordinator
+
+        tmpdir = tempfile.mkdtemp()
+        prices_dir = os.path.join(tmpdir, "data", "cn_pit")
+        os.makedirs(prices_dir)
+        with open(os.path.join(prices_dir, "prices.csv"), "w") as f:
+            f.write("date,000300.SS\n")
+            f.write("2026-04-30,4800\n")
+            f.write("2026-05-06,4900\n")
+
+        c = coordinator.MultiAgentCoordinator.__new__(coordinator.MultiAgentCoordinator)
+        c.data_dir = tmpdir
+
+        self.assertTrue(c._is_trading_day(datetime(2026, 4, 30)))
+        self.assertFalse(c._is_trading_day(datetime(2026, 5, 1)))  # Friday holiday inside known range
+        self.assertTrue(c._is_trading_day(datetime(2026, 5, 7)))  # Future of local data falls back to weekday
+
     def test_post_market_does_not_duplicate_open_risk_actions(self):
         import json
 
@@ -316,6 +334,94 @@ class TestCoordinatorAuditFlow(unittest.TestCase):
         c._run_ledger_validation.assert_called_once_with(strict=False)
         self.assertTrue(result["final_ledger_validation_passed"])
         self.assertEqual(result["final_ledger_validation"]["results"][0]["msg"], "all 23 trade dates have perf entry")
+
+    def test_post_market_ensures_daily_report_before_final_ledger_validation(self):
+        tmpdir = tempfile.mkdtemp()
+        c = self._coordinator_for_post_market(tmpdir)
+        c.agents["risk_controller"] = FakeRiskControllerExecutableActions()
+        c._is_trading_day = MagicMock(return_value=True)
+        c._execute_risk_action = MagicMock(return_value={
+            "ok": True,
+            "action_id": "risk-20260516-main-000651-risk_reduction-sell",
+            "account": "main",
+            "code": "000651",
+            "name": "格力电器",
+            "executed_shares": 800,
+            "price": 39.71,
+            "net_amount": 31768,
+        })
+        calls = []
+        c._ensure_daily_report_for_date = MagicMock(
+            side_effect=lambda date: calls.append("daily_report") or {
+                "created": True,
+                "path": os.path.join(tmpdir, "reports", "daily", f"{date}.md"),
+                "reason": "missing_report",
+            }
+        )
+        c._run_ledger_validation = MagicMock(
+            side_effect=lambda strict=False: calls.append("ledger_validation") or {
+                "status": "pass",
+                "failures": [],
+                "results": [],
+            }
+        )
+
+        result = c.run_post_market_workflow()
+
+        self.assertEqual(calls, ["daily_report", "ledger_validation"])
+        self.assertTrue(result["daily_report"]["created"])
+        self.assertTrue(result["final_ledger_validation_passed"])
+
+    def test_ensure_daily_report_for_date_creates_validator_compatible_report(self):
+        import json
+        import coordinator
+
+        tmpdir = tempfile.mkdtemp()
+        c = coordinator.MultiAgentCoordinator.__new__(coordinator.MultiAgentCoordinator)
+        c.data_dir = tmpdir
+
+        os.makedirs(os.path.join(tmpdir, "trades", "2026-05"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdir, "strategies"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdir, "accounts"), exist_ok=True)
+
+        with open(os.path.join(tmpdir, "trades", "2026-05", "2026-05-21.json"), "w") as f:
+            json.dump({
+                "date": "2026-05-21",
+                "trades": [{
+                    "account": "lab",
+                    "action": "sell",
+                    "code": "688111",
+                    "name": "金山办公",
+                    "price": 243.90,
+                    "shares": 100,
+                    "amount": 24390,
+                    "signal": "时间止损",
+                }],
+                "account_snapshots": {
+                    "lab": {"total_value": 318159.2, "daily_pnl": 338.0, "daily_pnl_pct": 0.11},
+                },
+            }, f)
+        with open(os.path.join(tmpdir, "strategies", "performance_history.json"), "w") as f:
+            json.dump([{
+                "date": "2026-05-21",
+                "main_pct": -0.26,
+                "lab_pct": 0.11,
+                "hs300_pct": -1.39,
+                "benchmark_source": "tencent_api",
+            }], f)
+        with open(os.path.join(tmpdir, "accounts", "main.json"), "w") as f:
+            json.dump({"total_value": 992795.74, "daily_pnl": -2632.0, "daily_pnl_pct": -0.26}, f)
+        with open(os.path.join(tmpdir, "accounts", "lab.json"), "w") as f:
+            json.dump({"total_value": 318159.2, "daily_pnl": 338.0, "daily_pnl_pct": 0.11}, f)
+
+        result = c._ensure_daily_report_for_date("2026-05-21")
+
+        self.assertTrue(result["created"])
+        with open(result["path"]) as f:
+            report = f.read()
+        self.assertIn("主账户总资产：992,796（-0.26%）", report)
+        self.assertIn("实验账户总资产：318,159（+0.11%）", report)
+        self.assertIn("金山办公", report)
 
     def test_post_market_queues_auto_risk_actions_on_non_trading_day(self):
         tmpdir = tempfile.mkdtemp()
@@ -494,6 +600,41 @@ class TestCoordinatorAuditFlow(unittest.TestCase):
         with open(pending_path) as f:
             queued = json.load(f)
         self.assertEqual(queued[0]["status"], "expired")
+
+    def test_malformed_pending_risk_action_expiry_is_marked_invalid(self):
+        import coordinator
+        import json
+
+        tmpdir = tempfile.mkdtemp()
+        actions_dir = os.path.join(tmpdir, "actions")
+        os.makedirs(actions_dir)
+        pending_path = os.path.join(actions_dir, "pending.json")
+        with open(pending_path, "w") as f:
+            json.dump([{
+                "action_id": "risk-invalid-expiry-001",
+                "account": "main",
+                "action": "sell",
+                "code": "000651",
+                "type": "risk_reduction",
+                "status": "proposed",
+                "auto_execute": True,
+                "sell_shares": 800,
+                "expires_at": "not-a-date",
+            }], f)
+
+        c = coordinator.MultiAgentCoordinator.__new__(coordinator.MultiAgentCoordinator)
+        c.data_dir = tmpdir
+        c._is_trading_day = MagicMock(return_value=True)
+        c._execute_risk_action = MagicMock()
+
+        result = c._process_pending_risk_actions()
+
+        c._execute_risk_action.assert_not_called()
+        self.assertEqual(result["skipped"], 1)
+        with open(pending_path) as f:
+            queued = json.load(f)
+        self.assertEqual(queued[0]["status"], "invalid")
+        self.assertIn("invalid expires_at", queued[0]["invalid_reason"])
 
     def test_execute_risk_action_updates_virtual_account_and_trade_record(self):
         import coordinator

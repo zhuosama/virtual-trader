@@ -1,0 +1,37 @@
+{
+  "date": "2026-05-26",
+  "is_trading_day": true,
+  "market_summary": {},
+  "trades": [
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "sell",
+      "code": "300124",
+      "name": "汇川技术",
+      "type": "stock",
+      "price": 80.88,
+      "shares": 100,
+      "amount": 8088.0,
+      "commission": 5,
+      "stamp_tax": 8.09,
+      "transfer_fee": 0.16,
+      "total_cost": 13.25,
+      "net_amount": 8074.75,
+      "signal": "仓位20.2%超过20%限制",
+      "strategy_ref": "risk_controller",
+      "realized_pnl": 967.75,
+      "execution_type": "executed",
+      "source": "auto_risk_reduction",
+      "generated_at": "2026-05-26T09:31:19.033888",
+      "rationale": "deterministic reduce-only risk rule"
+    }
+  ],
+  "account_snapshots": {
+    "lab": {
+      "total_value": 320633.95,
+      "daily_pnl": 1640.0,
+      "daily_pnl_pct": 0.51
+    }
+  }
+}
