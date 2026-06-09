@@ -1,0 +1,36 @@
+{
+  "initial_capital": 100000,
+  "holdings_n": 8,
+  "max_position_pct": 0.18,
+  "stop_loss_pct": -0.10,
+  "take_profit_arm_pct": 0.30,
+  "take_profit_giveback_pct": 0.10,
+  "portfolio_dd_halt_pct": -0.20,
+  "max_new_buys_per_day": 3,
+  "turnover_warn": 0.40,
+  "turnover_block": 0.75,
+  "universe": {
+    "price_min": 5.0,
+    "adv_min_usd": 2000000,
+    "mcap_min": 300000000,
+    "mcap_max": 10000000000
+  },
+  "growth": {
+    "rev_yoy_min": 0.15,
+    "earn_yoy_min": 0.0
+  },
+  "momentum": {
+    "lookback_3m": 63,
+    "lookback_6m": 126,
+    "w_3m": 0.5,
+    "w_6m": 0.5
+  },
+  "fill": {
+    "price": "close",
+    "commission_per_share": 0.005,
+    "commission_min": 1.0
+  },
+  "weixin_target": "weixin",
+  "tz_run_hour_bjt": 6,
+  "tz_notify_hour_bjt": 8
+}
