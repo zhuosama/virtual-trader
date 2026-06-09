@@ -548,6 +548,42 @@ class StrategyMaintainerAgent:
         except Exception as e:
             logger.error(f"保存策略更新报告失败: {e}")
 
+def detect_iteration_stall(audit_decisions, perf_history,
+                           min_stall_days: int = 10, lookback: int = 10):
+    """S4: 检测策略自迭代是否停滞且伴随跑输基准。
+
+    纯函数。返回告警字符串或 None。触发条件（两者同时成立）：
+      1. 最近 min_stall_days 个【非空】audit_decision 全是 'NO_CHANGES'；
+      2. 最近 lookback 个交易日主账户累计跑输沪深300。
+
+    设计意图：NO_CHANGES 本身不是错误（无信号时不该硬改策略），但「长期
+    NO_CHANGES + 持续跑输」说明自迭代事实上停摆——5/16~6/9 的一个月静默
+    停滞正是这种情况，却因 NO_CHANGES 不发 warning 而无人察觉。
+
+    audit_decisions / perf_history 均为 most-recent-last。perf 条目用
+    main_pct / hs300_pct（单位：百分比）。
+    """
+    recent = [d for d in (audit_decisions or []) if d]
+    if len(recent) < min_stall_days:
+        return None
+    if any(d != "NO_CHANGES" for d in recent[-min_stall_days:]):
+        return None
+
+    window = (perf_history or [])[-lookback:]
+    if not window:
+        return None
+    main_cum, hs_cum = 1.0, 1.0
+    for r in window:
+        main_cum *= (1 + (r.get("main_pct", 0) or 0) / 100)
+        hs_cum *= (1 + (r.get("hs300_pct", 0) or 0) / 100)
+    if main_cum >= hs_cum:
+        return None
+
+    gap_pp = (main_cum - hs_cum) * 100
+    return (f"⚠️ 策略自迭代停滞：连续 {min_stall_days} 个交易日 NO_CHANGES，"
+            f"且近 {len(window)} 日主账户跑输沪深300 {gap_pp:.1f}pp — 需人工检查")
+
+
 def main():
     """主函数"""
     agent = StrategyMaintainerAgent()
