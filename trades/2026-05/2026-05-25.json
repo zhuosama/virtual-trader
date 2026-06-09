@@ -1,0 +1,37 @@
+{
+  "date": "2026-05-25",
+  "is_trading_day": true,
+  "market_summary": {},
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "sell",
+      "code": "601006",
+      "name": "大秦铁路",
+      "type": "stock",
+      "price": 5.35,
+      "shares": 8000,
+      "amount": 42800.0,
+      "commission": 12.84,
+      "stamp_tax": 42.8,
+      "transfer_fee": 0.86,
+      "total_cost": 56.5,
+      "net_amount": 42743.5,
+      "signal": "持有27天无收益，超过时间止损20天",
+      "strategy_ref": "risk_controller",
+      "realized_pnl": -390.1,
+      "execution_type": "executed",
+      "source": "auto_risk_reduction",
+      "generated_at": "2026-05-25T09:31:10.601723",
+      "rationale": "deterministic reduce-only risk rule"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 991218.24,
+      "daily_pnl": -767.0,
+      "daily_pnl_pct": -0.08
+    }
+  }
+}

@@ -1,0 +1,263 @@
+ts_code,name
+AEHR,Aehr Test Systems
+AIOT,Alpha Intelligence Capital
+ALRM,Alarm.com Holdings
+AMKR,Amkor Technology
+APPN,Appian Corporation
+ASTS,AST SpaceMobile
+BAND,Bandwidth Inc
+BIGC,BigCommerce Holdings
+BILL,Bill.com Holdings
+BITO,ProShares Bitcoin ETF
+BLKB,Blackbaud Inc
+BRP,BRP Group Inc
+BRZE,Braze Inc
+BTRS,Billtrust Inc
+CALX,Calix Inc
+CDEV,Centennial Resource Development
+CELH,Celsius Holdings
+CERT,Certara Inc
+CEVA,CEVA Inc
+CIFR,Cipher Mining
+CLBT,Cellebrite DI
+CLOV,Clover Health Investments
+CMPO,CompoSecure Inc
+CNXC,Concentrix Corporation
+COUR,Coursera Inc
+CPNG,Coupang Inc
+CRCT,Cricut Inc
+CRNX,Crinetics Pharmaceuticals
+CRWD,CrowdStrike Holdings
+CSIQ,Canadian Solar Inc
+CTKB,Cytek Biosciences
+DAVE,Dave Inc
+DBRG,DigitalBridge Group
+DCT,Duck Creek Technologies
+DOCS,Doximity Inc
+DOMO,Domo Inc
+DUOL,Duolingo Inc
+DV,DoubleVerify Holdings
+ENVX,Enovix Corporation
+ESTC,Elastic NV
+EVER,EverCommerce Inc
+EXFY,Expensify Inc
+EXLS,ExlService Holdings
+FIGS,Figs Inc
+FLNC,Fluence Energy
+FOUR,Shift4 Payments
+FRGE,Forge Global Holdings
+FROG,JFrog Ltd
+FULT,Fulton Financial
+GH,Guardant Health
+GLBE,Global-E Online Ltd
+GTLB,GitLab Inc
+HALO,Halozyme Therapeutics
+HIMS,Hims & Hers Health
+HRBL,Herbal Labs
+HRMY,Harmony Biosciences
+HUBS,HubSpot Inc
+HUT,Hut 8 Corp
+IDEX,Ideanomics Inc
+INMD,InMode Ltd
+INSW,International Seaways
+IONQ,IonQ Inc
+IOVA,Iovance Biotherapeutics
+IRBT,iRobot Corporation
+IRTC,iRhythm Technologies
+IVP,Inspire Veterinary Partners
+JAMF,Jamf Holding Corp
+JOBY,Joby Aviation Inc
+KLIC,Kulicke and Soffa Industries
+LASR,nLIGHT Inc
+LGND,Ligand Pharmaceuticals
+LIQT,LiqTech International
+LITE,Lumentum Holdings
+LPSN,LivePerson Inc
+LQDA,Liquidia Corporation
+MAPS,WM Technology Inc
+MARA,Marathon Digital Holdings
+MDRX,Allscripts Healthcare
+MELI,MercadoLibre Inc
+MGNI,Magnite Inc
+MIME,Mimecast Ltd
+MKFG,Markforged Holding
+MKTX,MarketAxess Holdings
+MNDY,Monday.com Ltd
+MNKD,MannKind Corporation
+MNTV,Momentive Global
+MRSN,Mersana Therapeutics
+MRUS,Merus NV
+MTTR,Matterport Inc
+NABL,N-able Inc
+NET,Cloudflare Inc
+NKLA,Nikola Corporation
+NVEI,Nuvei Corporation
+OPEN,Opendoor Technologies
+OPFI,OppFi Inc
+OTLK,Outlook Therapeutics
+PAYO,Payoneer Global
+PCVX,Vaxcyte Inc
+PDCO,Patterson Companies
+PDFS,PDF Solutions
+PHAT,Phathom Pharmaceuticals
+PLBY,PLBY Group
+PLNHF,Planet Labs PBC
+PLTK,Playtika Holding
+PLUG,Plug Power Inc
+PMVP,PMV Pharmaceuticals
+PODD,Insulet Corporation
+POWL,Powell Industries
+PRCT,Procept BioRobotics
+PRGS,Progress Software
+PSTG,Pure Storage Inc
+PTGX,Protagonist Therapeutics
+PUBM,PubMatic Inc
+PTON,Peloton Interactive
+PVBC,Provident Bancorp
+QNST,QuinStreet Inc
+QLYS,Qualys Inc
+RAMP,LiveRamp Holdings
+RCUS,Arcus Biosciences
+RELY,Remitly Global
+RLAY,Relay Therapeutics
+RMBS,Rambus Inc
+RNET,Rignet Inc
+RNLX,Renalytix AI
+RPAY,Repay Holdings
+RSKIA,George Risk Industries
+RSKD,Riskified Ltd
+RVLV,Revolve Group
+RXRX,Recursion Pharmaceuticals
+S,SentinelOne Inc
+SANA,Sana Biotechnology
+SAND,Sandstorm Gold
+SEER,Seer Inc
+SGRY,Surgery Partners
+SHAK,Shake Shack Inc
+SHOP,Shopify Inc
+SILK,Silk Road Medical
+SITM,SiTime Corporation
+SKYH,Sky Harbour Group
+SLGN,Silgan Holdings
+SMFR,Sievert Larson Farms
+SMPL,Simply Good Foods
+SNOW,Snowflake Inc
+SOFI,SoFi Technologies
+SPHR,Sphere Entertainment Co
+SPNV,Supernova Partners Acquisition
+SPWH,Sportsman's Warehouse
+SQ,Block Inc
+SRPT,Sarepta Therapeutics
+STEM,Stem Inc
+STEP,StepStone Group
+STNE,StoneCo Ltd
+SVMK,SurveyMonkey
+SWAV,ShockWave Medical
+TASK,TaskUs Inc
+TGTX,TG Therapeutics
+THRM,Gentherm Inc
+TMDX,TransMedics Group
+TPVG,TriplePoint Venture Growth
+TPIC,TPI Composites
+TRTX,Terra Property Trust
+TSEM,Tower Semiconductor
+TTGT,TechTarget Inc
+TWNK,Hostess Brands
+TYRA,Tyra Biosciences
+UPST,Upstart Holdings
+VRNS,Varonis Systems
+VRTX,Vertex Pharmaceuticals
+VTRS,Viatris Inc
+VUZI,Vuzix Corporation
+WKME,WalkMe Ltd
+WKHS,Workhorse Group
+XMTR,Xometry Inc
+XPEL,XPEL Inc
+XTLB,XTL Biopharmaceuticals
+YEXT,Yext Inc
+ZING,Playags Inc
+ZLAB,Zymeworks Inc
+ZNGA,Zynga Inc
+ZS,Zscaler Inc
+ZYXI,Zynex Medical
+ACMR,ACM Research
+AGIO,Agios Pharmaceuticals
+AKAM,Akamai Technologies
+ALEC,Alector Inc
+ALKS,Alkermes PLC
+ALNY,Alnylam Pharmaceuticals
+ALPN,Alpine Immune Sciences
+AMEH,Apollo Medical Holdings
+AMRN,Amarin Corporation
+ANAB,AnaptysBio Inc
+ANDE,Andersons Inc
+ANGI,Angi Inc
+ANIK,Anika Therapeutics
+APLT,Applied Therapeutics
+APOG,Apogee Enterprises
+APPH,AppHarvest Inc
+ARCE,Arco Platform Ltd
+ARCT,Arctus Biosciences
+ARDX,Ardelyx Inc
+AREC,American Resources Corporation
+ARQT,Arcutis Biotherapeutics
+ARTL,Artelo Biosciences
+ARWR,Arrowhead Pharmaceuticals
+ASAN,Asana Inc
+ASGN,ASGN Inc
+ASND,Ascendis Pharma
+ASPN,Aspen Aerogels
+ASTE,Astec Industries
+ATHA,Athira Pharma
+ATNI,ATN International
+ATNM,Actinium Pharmaceuticals
+ATRC,AtriCure Inc
+ATSG,Air Transport Services
+AVPT,AvePoint Inc
+AVTR,Avantor Inc
+AXNX,Axonics Modulation Technologies
+AXSM,Axsome Therapeutics
+AZPN,Aspen Technology
+BFST,Business First Bancshares
+BFLY,Butterfly Network
+BKKT,Bakkt Holdings
+BKNG,Booking Holdings
+BLDP,Ballard Power Systems
+BLFS,BioLife Solutions
+BMBL,Bumble Inc
+BONE,Greenbrier Companies
+BOOT,Boot Barn Holdings
+BTBT,Bit Digital Inc
+BYND,Beyond Meat Inc
+CART,Instacart Maplebear
+CCXI,ChemoCentryx Inc
+CDLX,Cardlytics Inc
+CELC,Celcuity Inc
+CERE,Cerevel Therapeutics
+CERS,Cerus Corporation
+CGEM,Cullinan Oncology
+CGON,CG Oncology
+CHGG,Chegg Inc
+CHKP,Check Point Software
+CIFS,China Internet Nationwide Financial Services
+CLFD,Clearfield Inc
+CLPS,CLPS Technology
+CLSK,CleanSpark Inc
+CMCO,Columbus McKinnon
+CMLF,CM Life Sciences Acquisition
+CMPS,COMPASS Pathways
+CNDT,Conduent Inc
+CNET,ZW Data Action Technologies
+COHU,Cohu Inc
+CONN,Conn's Inc
+CORR,CorEnergy Infrastructure Trust
+COUP,Coupa Software
+CPRT,Copart Inc
+CRSP,CRISPR Therapeutics
+CTVA,Corteva Inc
+CURV,Torrid Holdings
+CURO,CURO Group Holdings
+CVLT,CommVault Systems
+CYCN,Cyclerion Therapeutics
+CYRX,Cryoport Inc
+CZWI,Citizens Community Bancorp

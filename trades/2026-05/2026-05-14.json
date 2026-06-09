@@ -1,0 +1,60 @@
+{
+  "date": "2026-05-14",
+  "is_trading_day": true,
+  "market_summary": {
+    "hs300_index": {
+      "close": 4914.6,
+      "change_pct": -1.68
+    }
+  },
+  "trades": [
+    {
+      "account": "lab",
+      "action": "sell",
+      "code": "300750",
+      "name": "宁德时代",
+      "price": 427.0,
+      "shares": 100,
+      "amount": 42700.0,
+      "total_cost": 56.36,
+      "net_amount": 42643.64,
+      "signal": "时间止损: 持有31天无涨幅",
+      "date": "2026-05-14",
+      "realized_pnl_pct": -0.06,
+      "execution_type": "backfill",
+      "source": "yfinance_replay",
+      "generated_at": "2026-05-15T23:00:00",
+      "rationale": "时间止损: 持有31天无涨幅"
+    },
+    {
+      "account": "lab",
+      "action": "sell",
+      "code": "300059",
+      "name": "东方财富",
+      "price": 20.18,
+      "shares": 2000,
+      "amount": 40360.0,
+      "total_cost": 53.28,
+      "net_amount": 40306.72,
+      "signal": "时间止损: 持有8天无涨幅",
+      "date": "2026-05-14",
+      "realized_pnl_pct": -3.21,
+      "execution_type": "backfill",
+      "source": "yfinance_replay",
+      "generated_at": "2026-05-15T23:00:00",
+      "rationale": "时间止损: 持有8天无涨幅"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 998352.71,
+      "daily_pnl": -1951.0,
+      "daily_pnl_pct": -0.2
+    },
+    "lab": {
+      "total_value": 316119.18000000005,
+      "daily_pnl": -5484.639999999956,
+      "daily_pnl_pct": -1.71
+    }
+  }
+}

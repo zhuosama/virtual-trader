@@ -7,6 +7,7 @@ Risk Controller Agent
 
 import json
 import os
+import math
 
 VTRADER_HOME = os.environ.get("VTRADER_HOME", os.path.expanduser("~/.hermes/virtual-trader"))
 from datetime import datetime
@@ -20,6 +21,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def _round_up_to_lot(shares: float, lot_size: int = 100) -> int:
+    if shares <= 0:
+        return 0
+    return int(math.ceil(shares / lot_size) * lot_size)
+
 class RiskControllerAgent:
     """风控专家Agent"""
     
@@ -28,6 +35,8 @@ class RiskControllerAgent:
         self.config = self._load_config(config_path)
         self.data_dir = VTRADER_HOME
         self.risk_rules = self._load_risk_rules()
+        self.llm = None
+        self._init_llm()
         
     def _load_config(self, config_path: str = None) -> Dict:
         """加载配置"""
@@ -44,6 +53,28 @@ class RiskControllerAgent:
             logger.error(f"加载配置失败: {e}")
             return {}
     
+    def _init_llm(self):
+        """初始化 LLM 客户端"""
+        try:
+            try:
+                from agents.llm_client import LLMClient
+            except ImportError:
+                from llm_client import LLMClient
+            self.llm = LLMClient(config_path=os.path.join(os.path.dirname(__file__), "config.json"))
+        except Exception as e:
+            logger.warning(f"LLM 初始化失败: {e}")
+            self.llm = None
+    
+    def _llm_risk_assessment(self, plan_summary: str, account_data: str) -> str:
+        """用 LLM 进行风险评估"""
+        if not self.llm:
+            return ""
+        system = ("你是A股风控专家。审查交易计划，识别隐藏风险。"
+                  "关注：仓位集中度、行业风险、流动性风险、宏观风险、估值风险。"
+                  "给出风险评级（低/中/高）和具体风险点。用中文。")
+        prompt = f"交易计划:\n{plan_summary}\n\n账户数据:\n{account_data}"
+        return self.llm.call("risk_controller", system, prompt)
+
     def _load_risk_rules(self) -> Dict:
         """加载风险规则"""
         # 风险规则配置
@@ -252,9 +283,10 @@ class RiskControllerAgent:
             if not positions:
                 continue
             
-            # 计算前3大持仓占比
+            # 计算前3大持仓占账户总资产比例。不能用持仓市值合计做分母；
+            # 高现金/低仓位账户会被误判为前3持仓 100% 集中。
             market_values = [p.get('market_value', 0) for p in positions]
-            total_value = sum(market_values)
+            total_value = account.get('total_value') or sum(market_values)
             
             if total_value > 0:
                 sorted_values = sorted(market_values, reverse=True)
@@ -364,6 +396,140 @@ class RiskControllerAgent:
             summary_parts.append(f"修改建议: {len(modifications)}个")
         
         return " | ".join(summary_parts)
+
+
+    def generate_risk_reduction_actions(self) -> List[Dict]:
+        """Generate reduce-only sell actions for positions exceeding limits.
+        
+        Checks:
+        1. Single position exceeds max_single_position (main=10%, lab=20%)
+        2. Unrealized loss exceeds stop-loss threshold (main=7%, lab=5.5%)
+        3. Position held beyond time_stop days with no gain
+        
+        Returns:
+            List of sell actions (never buy). Empty list if all compliant.
+        """
+        actions = []
+        accounts = self._load_accounts()
+        
+        for account_type in ['main', 'lab']:
+            if account_type not in accounts:
+                continue
+            
+            account = accounts[account_type]
+            positions = account.get('positions', [])
+            total_value = account.get('total_value', 1)
+            rules = self.risk_rules['position_limits'][account_type]
+            stop_rules = self.risk_rules['stop_loss_rules'][account_type]
+            max_single = rules['single_stock']
+            
+            for pos in positions:
+                code = pos.get('code', '')
+                name = pos.get('name', '')
+                mv = pos.get('market_value', 0)
+                pnl_pct = pos.get('unrealized_pnl_pct', 0)
+                pos_pct = mv / total_value if total_value > 0 else 0
+                
+                # Check 1: position concentration
+                if pos_pct > max_single:
+                    current_price = pos.get('current_price') or (mv / pos.get('shares', 1) if pos.get('shares') else 0)
+                    current_shares = int(pos.get('shares', 0))
+                    excess_value = max(mv - total_value * max_single, 0)
+                    sell_shares = _round_up_to_lot(excess_value / current_price) if current_price > 0 else current_shares
+                    sell_shares = min(sell_shares, current_shares)
+                    projected_market_value = max(mv - sell_shares * current_price, 0)
+                    projected_pct = projected_market_value / total_value if total_value > 0 else 0
+                    actions.append({
+                        'account': account_type,
+                        'action': 'sell',
+                        'code': code,
+                        'name': name,
+                        'reason': f'仓位{pos_pct:.1%}超过{max_single:.0%}限制',
+                        'current_pct': round(pos_pct, 4),
+                        'target_pct': max_single,
+                        'type': 'risk_reduction',
+                        'auto_execute': True,
+                        'current_shares': current_shares,
+                        'sell_shares': sell_shares,
+                        'lot_size': 100,
+                        'price': current_price,
+                        'excess_market_value': round(excess_value, 2),
+                        'projected_pct': round(projected_pct, 4),
+                    })
+                
+                # Check 2: stop-loss
+                has_sell_action = any(
+                    a.get('account') == account_type and a.get('code') == code and a.get('action') == 'sell'
+                    for a in actions
+                )
+
+                if pnl_pct < 0 and abs(pnl_pct) / 100 >= stop_rules['default']:
+                    current_price = pos.get('current_price') or (mv / pos.get('shares', 1) if pos.get('shares') else 0)
+                    current_shares = int(pos.get('shares', 0))
+                    actions.append({
+                        'account': account_type,
+                        'action': 'sell',
+                        'code': code,
+                        'name': name,
+                        'reason': f'浮亏{pnl_pct:.2f}%触发止损线{stop_rules["default"]:.1%}',
+                        'unrealized_pnl_pct': pnl_pct,
+                        'stop_loss_pct': stop_rules['default'],
+                        'type': 'stop_loss',
+                        'auto_execute': True,
+                        'current_shares': current_shares,
+                        'sell_shares': current_shares,
+                        'lot_size': 100,
+                        'price': current_price,
+                    })
+                    has_sell_action = True
+
+                # Check 3: time-stop for stale positions with no gain
+                entry_date = pos.get('entry_date') or pos.get('buy_date')
+                if entry_date and pnl_pct <= 0:
+                    try:
+                        holding_days = (datetime.now() - datetime.strptime(entry_date, "%Y-%m-%d")).days
+                    except ValueError:
+                        logger.warning("time-stop: cannot parse entry_date '%s' for %s, skipping", entry_date, code)
+                        holding_days = None
+                    if not has_sell_action and holding_days is not None and holding_days > stop_rules['time_stop']:
+                        current_price = pos.get('current_price') or (mv / pos.get('shares', 1) if pos.get('shares') else 0)
+                        current_shares = int(pos.get('shares', 0))
+                        actions.append({
+                            'account': account_type,
+                            'action': 'sell',
+                            'code': code,
+                            'name': name,
+                            'reason': f'持有{holding_days}天无收益，超过时间止损{stop_rules["time_stop"]}天',
+                            'holding_days': holding_days,
+                            'time_stop_days': stop_rules['time_stop'],
+                            'unrealized_pnl_pct': pnl_pct,
+                            'type': 'time_stop',
+                            'auto_execute': True,
+                            'current_shares': current_shares,
+                            'sell_shares': current_shares,
+                            'lot_size': 100,
+                            'price': current_price,
+                        })
+        
+        return actions
+
+    def validate_and_reduce(self) -> Dict:
+        """Validate current portfolio state and generate risk reduction actions.
+        
+        Returns:
+            {"validation": <validate_trading_plan result>,
+             "risk_reduction_actions": [<sell actions>]}
+        """
+        validation = self.validate_trading_plan({})
+        risk_actions = self.generate_risk_reduction_actions()
+        
+        if risk_actions:
+            logger.warning(f"生成 {len(risk_actions)} 条减仓建议")
+        
+        return {
+            'validation': validation,
+            'risk_reduction_actions': risk_actions,
+        }
 
 def main():
     """主函数"""

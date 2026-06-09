@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backtest Compare · Hermes Console</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --border: #2a2d3e;
+    --ink: #e8e9ed; --muted: #6b7089; --accent: #4f8ff7;
+    --positive: #326d36; --negative: #c0392b;
+    --mono: 'SF Mono','Cascadia Code','Consolas', monospace;
+    --sans: -apple-system,'Segoe UI', system-ui, sans-serif;
+    --run0: #4f8ff7; --run1: #f5a623; --run2: #e74c3c; --run3: #2ecc71;
+    --run4: #9b59b6; --run5: #1abc9c; --run6: #e67e22; --run7: #3498db;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); line-height: 1.6; min-height: 100vh; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
+  .header nav a:hover, .header nav a.active { color: var(--ink); }
+  .main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
+  .section-title:first-child { margin-top: 0; }
+  .privacy-banner { padding: .5rem .75rem; margin-bottom: 1.5rem; border: 1px solid var(--negative); border-radius: 4px; color: var(--negative); font-size: .75rem; font-family: var(--mono); }
+  .btn { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem 1.25rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: .85rem; font-weight: 600; cursor: pointer; transition: border-color .14s, background .14s; }
+  .btn:hover { border-color: var(--ink); }
+  .btn.sm { font-size: .75rem; padding: .25rem .75rem; }
+  .btn.danger { border-color: var(--negative); color: var(--negative); }
+  .btn.danger:hover { background: rgba(192,57,43,.1); }
+
+  /* Run chips */
+  .run-chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+  .run-chip { display: inline-flex; align-items: center; gap: .5rem; padding: .3rem .75rem; border: 1px solid var(--border); border-radius: 20px; font-family: var(--mono); font-size: .75rem; background: var(--surface); }
+  .run-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .run-chip .remove { cursor: pointer; color: var(--muted); font-size: .9rem; margin-left: .25rem; transition: color .14s; }
+  .run-chip .remove:hover { color: var(--negative); }
+
+  /* Charts */
+  .chart-container { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 1rem; margin-bottom: 1.5rem; }
+  .chart-container h3 { font-size: .85rem; font-weight: 600; margin-bottom: .75rem; }
+  .chart-wrap { position: relative; }
+  canvas { display: block; width: 100%; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: .75rem; font-size: .75rem; font-family: var(--mono); }
+  .chart-legend .item { display: inline-flex; align-items: center; gap: .35rem; }
+  .chart-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Tooltip */
+  .chart-tooltip { position: absolute; pointer-events: none; background: rgba(15,17,23,.95); border: 1px solid var(--border); border-radius: 4px; padding: .5rem .75rem; font-family: var(--mono); font-size: .7rem; line-height: 1.5; z-index: 10; display: none; max-width: 300px; }
+
+  /* Ranking cards */
+  .ranking-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .ranking-card { border: 1px solid var(--border); border-top: 2px solid var(--accent); border-radius: 6px; background: var(--surface); padding: 1rem; }
+  .ranking-card .label { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: .35rem; }
+  .ranking-card .winner { font-family: var(--mono); font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+  .ranking-card .meta { font-size: .75rem; color: var(--muted); }
+
+  /* Metrics table */
+  .metrics-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .metrics-table th { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .5rem; border-bottom: 1px solid var(--border); font-weight: 600; white-space: nowrap; }
+  .metrics-table td { padding: .5rem; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: .78rem; }
+  .metrics-table tr:hover td { background: rgba(79,143,247,.04); }
+  .metrics-table .num { text-align: right; }
+  .metrics-table .best { background: rgba(50,109,54,.08); }
+  .positive { color: var(--positive); }
+  .negative { color: var(--negative); }
+  .status-badge { font-family: var(--mono); font-size: .65rem; padding: .0625rem .375rem; border: 1px solid var(--border); border-radius: 3px; text-transform: uppercase; letter-spacing: .04em; }
+  .status-badge.completed { color: var(--positive); border-color: var(--positive); }
+  .status-badge.failed { color: var(--negative); border-color: var(--negative); }
+
+  .empty { color: var(--muted); font-size: .85rem; padding: 2rem; text-align: center; border: 1px dashed var(--border); border-radius: 6px; }
+  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: .7rem; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Console · Backtest Compare</h1>
+  <nav>
+    <a href="/console/virtual-trader">Home</a>
+    <a href="/console/virtual-trader/data">Data</a>
+    <a href="/console/virtual-trader/strategies">Strategies</a>
+    <a href="/console/virtual-trader/backtests">Backtests</a>
+  </nav>
+</div>
+
+<div class="main">
+  <div class="privacy-banner">⚠ Local private comparison — never exported publicly</div>
+
+  <div id="run-chips-container"></div>
+
+  <div id="empty-state" style="display:none">
+    <p class="empty">No runs selected. <a href="/console/virtual-trader/backtests" style="color:var(--accent)">Go back</a> and select at least 2 runs to compare.</p>
+  </div>
+
+  <div id="compare-content">
+    <div class="section-title">Ranking</div>
+    <div id="ranking-grid" class="ranking-grid"></div>
+
+    <div class="section-title">Cumulative Return</div>
+    <div class="chart-container">
+      <h3>Multi-run Return Comparison</h3>
+      <div class="chart-wrap">
+        <canvas id="chart-return" height="320"></canvas>
+        <div id="tooltip-return" class="chart-tooltip"></div>
+      </div>
+      <div id="legend-return" class="chart-legend"></div>
+    </div>
+
+    <div class="section-title">Drawdown</div>
+    <div class="chart-container">
+      <h3>Drawdown Comparison</h3>
+      <div class="chart-wrap">
+        <canvas id="chart-dd" height="260"></canvas>
+        <div id="tooltip-dd" class="chart-tooltip"></div>
+      </div>
+      <div id="legend-dd" class="chart-legend"></div>
+    </div>
+
+    <div class="section-title">Metrics Matrix</div>
+    <div style="overflow-x:auto;margin-bottom:1.5rem">
+      <table class="metrics-table" id="metrics-table"></table>
+    </div>
+  </div>
+
+  <div class="footer">
+    Backtest Compare · read-only local analysis · 127.0.0.1 only
+  </div>
+</div>
+
+<script>
+(function() {
+  var DATA = __COMPARE_JSON__;
+  var COLORS = ['#4f8ff7','#f5a623','#e74c3c','#2ecc71','#9b59b6','#1abc9c','#e67e22','#3498db'];
+  var state = { runs: DATA.runs || [], rankings: DATA.rankings || {} };
+
+  // --- Init ---
+  function init() {
+    if (!state.runs || state.runs.length === 0) {
+      showEmpty();
+      return;
+    }
+    renderChips();
+    renderRankings();
+    renderReturnChart();
+    renderDDChart();
+    renderMetricsTable();
+  }
+
+  function showEmpty() {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('compare-content').style.display = 'none';
+  }
+
+  // --- Run chips (with remove) ---
+  function renderChips() {
+    var container = document.getElementById('run-chips-container');
+    var html = '<div class="run-chips">';
+    state.runs.forEach(function(r, i) {
+      var color = COLORS[i % COLORS.length];
+      var short = r.runId ? r.runId.substring(5) : '?';
+      html += '<span class="run-chip">' +
+        '<span class="dot" style="background:' + color + '"></span>' +
+        '<span>' + short + ' (' + (r.strategyId || '?') + ')</span>' +
+        '<span class="remove" onclick="removeRun(' + i + ')" title="Remove">✕</span>' +
+        '</span>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  window.removeRun = function(idx) {
+    state.runs.splice(idx, 1);
+    if (state.runs.length === 0) {
+      window.location.href = '/console/virtual-trader/backtests';
+      return;
+    }
+    var ids = state.runs.map(function(r) { return r.runId; });
+    window.location.href = '/console/virtual-trader/backtests/compare?runs=' + ids.join(',');
+  };
+
+  // --- Rankings ---
+  function renderRankings() {
+    var grid = document.getElementById('ranking-grid');
+    var cards = [
+      { key: 'bestReturn', label: 'Best Return', field: 'cumulativeReturnPct', unit: '%' },
+      { key: 'bestExcess', label: 'Best Excess Return', field: 'excessReturnPct', unit: '%' },
+      { key: 'bestDrawdown', label: 'Lowest Drawdown', field: 'maxDrawdownPct', unit: '%' },
+      { key: 'bestSharpe', label: 'Best Sharpe Ratio', field: 'sharpeRatio', unit: '' },
+    ];
+    var html = '';
+    cards.forEach(function(c) {
+      var winnerId = state.rankings[c.key];
+      var run = findRun(winnerId);
+      var value = run ? run[c.field] : null;
+      var valueStr = value != null ? fmtNum(value, c.unit) : '—';
+      var meta = run ? (run.strategyId || '') + ' · ' + (run.account || '') : 'N/A';
+      html += '<div class="ranking-card">' +
+        '<div class="label">' + c.label + '</div>' +
+        '<div class="winner">' + valueStr + '</div>' +
+        '<div class="meta">' + (winnerId || '—') + ' · ' + meta + '</div>' +
+        '</div>';
+    });
+    grid.innerHTML = html;
+  }
+
+  function findRun(runId) {
+    if (!runId) return null;
+    for (var i = 0; i < state.runs.length; i++) {
+      if (state.runs[i].runId === runId) return state.runs[i];
+    }
+    return null;
+  }
+
+  // --- Cumulative Return Chart ---
+  function renderReturnChart() {
+    var canvas = document.getElementById('chart-return');
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.parentElement.getBoundingClientRect();
+    var W = rect.width;
+    var H = 320;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+
+    // Collect completed runs with dailySeries
+    var chartRuns = [];
+    state.runs.forEach(function(r, i) {
+      if (r.status === 'completed' && r.dailySeries && r.dailySeries.length > 0) {
+        chartRuns.push({ run: r, idx: i, color: COLORS[i % COLORS.length] });
+      }
+    });
+
+    if (chartRuns.length === 0) {
+      ctx.fillStyle = '#6b7089';
+      ctx.font = '14px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No completed runs with daily data', W / 2, H / 2);
+      return;
+    }
+
+    // Build aligned date map
+    var allDates = {};
+    chartRuns.forEach(function(cr) {
+      cr.run.dailySeries.forEach(function(d) { allDates[d.date] = true; });
+    });
+    var dates = Object.keys(allDates).sort();
+
+    // Compute cumulative return % for each run at each date
+    // Use initialCapital for consistency with API cumulativeReturnPct.
+    // Fall back: back-calculate from API return and last dailySeries value.
+    var series = [];
+    chartRuns.forEach(function(cr) {
+      var ds = cr.run.dailySeries;
+      var dateMap = {};
+      ds.forEach(function(d) { dateMap[d.date] = d; });
+      var initialVal = cr.run.initialCapital;
+      if (!initialVal && cr.run.cumulativeReturnPct != null && ds.length > 0) {
+        // Back-calculate: cumulativeReturnPct = (lastVal / initial - 1) * 100
+        initialVal = ds[ds.length - 1].totalValue / (1 + cr.run.cumulativeReturnPct / 100);
+      }
+      if (!initialVal) initialVal = ds[0].totalValue;
+      var points = [];
+      dates.forEach(function(date) {
+        if (dateMap[date]) {
+          var pct = ((dateMap[date].totalValue / initialVal) - 1) * 100;
+          points.push({ date: date, value: pct });
+        } else {
+          points.push({ date: date, value: null });
+        }
+      });
+      series.push({ points: points, color: cr.color, label: cr.run.runId, run: cr.run });
+    });
+
+    // Add benchmark line (hs300) from first completed run
+    var firstCompleted = chartRuns[0].run;
+    if (firstCompleted.benchmarkReturnPct != null && firstCompleted.dailySeries) {
+      var benchMap = {};
+      firstCompleted.dailySeries.forEach(function(d) {
+        if (d.hs300ReturnPct != null) benchMap[d.date] = d.hs300ReturnPct;
+      });
+      var benchPoints = [];
+      dates.forEach(function(date) {
+        benchPoints.push({ date: date, value: benchMap[date] != null ? benchMap[date] : null });
+      });
+      series.push({ points: benchPoints, color: '#6b7089', label: 'Benchmark (HS300)', dashed: true });
+    }
+
+    // Compute Y range
+    var minY = 0, maxY = 0;
+    series.forEach(function(s) {
+      s.points.forEach(function(p) {
+        if (p.value != null) {
+          if (p.value < minY) minY = p.value;
+          if (p.value > maxY) maxY = p.value;
+        }
+      });
+    });
+    var yPad = Math.max((maxY - minY) * 0.1, 0.5);
+    minY -= yPad; maxY += yPad;
+
+    // Layout
+    var pad = { top: 20, right: 20, bottom: 40, left: 60 };
+    var cW = W - pad.left - pad.right;
+    var cH = H - pad.top - pad.bottom;
+
+    function xPos(i) { return pad.left + (i / (dates.length - 1)) * cW; }
+    function yPos(v) { return pad.top + (1 - (v - minY) / (maxY - minY)) * cH; }
+
+    // Grid
+    ctx.strokeStyle = '#2a2d3e';
+    ctx.lineWidth = 1;
+    // Horizontal grid lines
+    var yTicks = niceTicks(minY, maxY, 6);
+    yTicks.forEach(function(v) {
+      var y = yPos(v);
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+      ctx.fillStyle = '#6b7089';
+      ctx.font = '11px SF Mono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(v.toFixed(1) + '%', pad.left - 6, y + 4);
+    });
+    // Zero line
+    if (minY <= 0 && maxY >= 0) {
+      ctx.strokeStyle = '#3a3d4e';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(pad.left, yPos(0)); ctx.lineTo(W - pad.right, yPos(0)); ctx.stroke();
+      ctx.strokeStyle = '#2a2d3e';
+      ctx.lineWidth = 1;
+    }
+
+    // X axis labels
+    var xStep = Math.max(1, Math.floor(dates.length / 8));
+    ctx.fillStyle = '#6b7089';
+    ctx.font = '10px SF Mono, monospace';
+    ctx.textAlign = 'center';
+    for (var i = 0; i < dates.length; i += xStep) {
+      ctx.fillText(dates[i].substring(5), xPos(i), H - pad.bottom + 16);
+    }
+    if ((dates.length - 1) % xStep !== 0) {
+      ctx.fillText(dates[dates.length - 1].substring(5), xPos(dates.length - 1), H - pad.bottom + 16);
+    }
+
+    // Draw lines
+    series.forEach(function(s) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 2;
+      if (s.dashed) ctx.setLineDash([5, 3]); else ctx.setLineDash([]);
+      ctx.beginPath();
+      var started = false;
+      s.points.forEach(function(p, i) {
+        if (p.value == null) return;
+        var x = xPos(i), y = yPos(p.value);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // Legend
+    var legendHtml = '';
+    series.forEach(function(s) {
+      legendHtml += '<span class="item"><span class="dot" style="background:' + s.color + ';' + (s.dashed ? 'opacity:.5' : '') + '"></span>' + s.label + '</span>';
+    });
+    document.getElementById('legend-return').innerHTML = legendHtml;
+
+    // Tooltip interaction
+    var tooltip = document.getElementById('tooltip-return');
+    canvas.addEventListener('mousemove', function(e) {
+      var bRect = canvas.getBoundingClientRect();
+      var mx = e.clientX - bRect.left;
+      var my = e.clientY - bRect.top;
+      // Find nearest date index
+      var idx = Math.round(((mx - pad.left) / cW) * (dates.length - 1));
+      idx = Math.max(0, Math.min(dates.length - 1, idx));
+      if (mx < pad.left || mx > W - pad.right) { tooltip.style.display = 'none'; return; }
+
+      var lines = ['<strong>' + dates[idx] + '</strong>'];
+      series.forEach(function(s) {
+        var v = s.points[idx].value;
+        if (v != null) {
+          lines.push('<span style="color:' + s.color + '">●</span> ' + s.label + ': ' + (v >= 0 ? '+' : '') + v.toFixed(2) + '%');
+        }
+      });
+      tooltip.innerHTML = lines.join('<br>');
+      tooltip.style.display = 'block';
+      var tx = mx + 12;
+      if (tx + 200 > W) tx = mx - 200;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = (my - 10) + 'px';
+    });
+    canvas.addEventListener('mouseleave', function() { tooltip.style.display = 'none'; });
+
+    // Store for drawdown
+    window._returnSeries = series;
+    window._returnDates = dates;
+  }
+
+  // --- Drawdown Chart ---
+  function renderDDChart() {
+    var canvas = document.getElementById('chart-dd');
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.parentElement.getBoundingClientRect();
+    var W = rect.width;
+    var H = 260;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+
+    var series = window._returnSeries;
+    var dates = window._returnDates;
+    if (!series || series.length === 0) {
+      ctx.fillStyle = '#6b7089';
+      ctx.font = '14px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No data for drawdown chart', W / 2, H / 2);
+      return;
+    }
+
+    // Compute drawdown series
+    var ddSeries = [];
+    series.forEach(function(s) {
+      var peak = -Infinity;
+      var ddPoints = [];
+      s.points.forEach(function(p) {
+        if (p.value == null) { ddPoints.push({ date: p.date, value: null }); return; }
+        if (p.value > peak) peak = p.value;
+        // DD = decline from peak as % of portfolio at peak
+        // peak and value are cumulative return %, so portfolio factor = 1 + pct/100
+        var dd = ((1 + p.value / 100) / (1 + peak / 100) - 1) * 100;
+        ddPoints.push({ date: p.date, value: dd });
+      });
+      ddSeries.push({ points: ddPoints, color: s.color, label: s.label, dashed: s.dashed });
+    });
+
+    // Y range
+    var minY = 0;
+    ddSeries.forEach(function(s) {
+      s.points.forEach(function(p) {
+        if (p.value != null && p.value < minY) minY = p.value;
+      });
+    });
+    var yPad = Math.max(Math.abs(minY) * 0.1, 0.2);
+    minY -= yPad;
+
+    var pad = { top: 20, right: 20, bottom: 40, left: 60 };
+    var cW = W - pad.left - pad.right;
+    var cH = H - pad.top - pad.bottom;
+
+    function xPos(i) { return pad.left + (i / (dates.length - 1)) * cW; }
+    function yPos(v) { return pad.top + (1 - v / minY) * cH; }
+
+    // Grid
+    ctx.strokeStyle = '#2a2d3e';
+    ctx.lineWidth = 1;
+    var yTicks = niceTicks(minY, 0, 5);
+    yTicks.forEach(function(v) {
+      var y = yPos(v);
+      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+      ctx.fillStyle = '#6b7089';
+      ctx.font = '11px SF Mono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(v.toFixed(1) + '%', pad.left - 6, y + 4);
+    });
+    // Zero line
+    ctx.strokeStyle = '#3a3d4e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pad.left, yPos(0)); ctx.lineTo(W - pad.right, yPos(0)); ctx.stroke();
+
+    // X axis labels
+    var xStep = Math.max(1, Math.floor(dates.length / 8));
+    ctx.fillStyle = '#6b7089';
+    ctx.font = '10px SF Mono, monospace';
+    ctx.textAlign = 'center';
+    for (var i = 0; i < dates.length; i += xStep) {
+      ctx.fillText(dates[i].substring(5), xPos(i), H - pad.bottom + 16);
+    }
+
+    // Draw lines
+    ddSeries.forEach(function(s) {
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 2;
+      if (s.dashed) ctx.setLineDash([5, 3]); else ctx.setLineDash([]);
+      ctx.beginPath();
+      var started = false;
+      s.points.forEach(function(p, i) {
+        if (p.value == null) return;
+        var x = xPos(i), y = yPos(p.value);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // Legend
+    var legendHtml = '';
+    ddSeries.forEach(function(s) {
+      legendHtml += '<span class="item"><span class="dot" style="background:' + s.color + ';' + (s.dashed ? 'opacity:.5' : '') + '"></span>' + s.label + '</span>';
+    });
+    document.getElementById('legend-dd').innerHTML = legendHtml;
+
+    // Tooltip
+    var tooltip = document.getElementById('tooltip-dd');
+    canvas.addEventListener('mousemove', function(e) {
+      var bRect = canvas.getBoundingClientRect();
+      var mx = e.clientX - bRect.left;
+      var my = e.clientY - bRect.top;
+      var idx = Math.round(((mx - pad.left) / cW) * (dates.length - 1));
+      idx = Math.max(0, Math.min(dates.length - 1, idx));
+      if (mx < pad.left || mx > W - pad.right) { tooltip.style.display = 'none'; return; }
+
+      var lines = ['<strong>' + dates[idx] + '</strong>'];
+      ddSeries.forEach(function(s) {
+        var v = s.points[idx].value;
+        if (v != null) {
+          lines.push('<span style="color:' + s.color + '">●</span> ' + s.label + ': ' + v.toFixed(2) + '%');
+        }
+      });
+      tooltip.innerHTML = lines.join('<br>');
+      tooltip.style.display = 'block';
+      var tx = mx + 12;
+      if (tx + 200 > W) tx = mx - 200;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = (my - 10) + 'px';
+    });
+    canvas.addEventListener('mouseleave', function() { tooltip.style.display = 'none'; });
+  }
+
+  // --- Metrics Matrix ---
+  function renderMetricsTable() {
+    var table = document.getElementById('metrics-table');
+    var completed = state.runs.filter(function(r) { return r.status === 'completed'; });
+
+    // Find best values for highlighting
+    var bests = {};
+    var fields = ['cumulativeReturnPct','excessReturnPct','sharpeRatio'];
+    var fieldsLower = ['maxDrawdownPct'];
+    fields.forEach(function(f) {
+      var max = -Infinity, maxId = null;
+      completed.forEach(function(r) {
+        if (r[f] != null && r[f] > max) { max = r[f]; maxId = r.runId; }
+      });
+      bests[f] = maxId;
+    });
+    fieldsLower.forEach(function(f) {
+      var min = Infinity, minId = null;
+      completed.forEach(function(r) {
+        if (r[f] != null && r[f] > min) { min = r[f]; minId = r.runId; }
+        // For drawdown (negative), "best" = closest to 0 = max value
+        if (r[f] != null && r[f] > min) { /* already handled */ }
+      });
+      // Actually for maxDrawdownPct, best = highest (least negative)
+      var max = -Infinity, maxId2 = null;
+      completed.forEach(function(r) {
+        if (r[f] != null && r[f] > max) { max = r[f]; maxId2 = r.runId; }
+      });
+      bests[f] = maxId2;
+    });
+
+    var headers = ['Run ID','Strategy','Account','Return','Benchmark','Excess','Max DD','Win%','Trades','Sharpe','Realized P&L','Fees','Status'];
+    var thead = '<thead><tr>' + headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead>';
+
+    var tbody = '<tbody>';
+    state.runs.forEach(function(r, i) {
+      tbody += '<tr>';
+      tbody += '<td style="color:' + COLORS[i % COLORS.length] + '">' + (r.runId || '—') + '</td>';
+      tbody += '<td>' + (r.strategyId || '—') + '</td>';
+      tbody += '<td>' + (r.account || '—') + '</td>';
+      tbody += '<td class="num ' + cellClass(r.cumulativeReturnPct) + '"' + bestAttr(r.runId, bests, 'cumulativeReturnPct') + '>' + fmtNum(r.cumulativeReturnPct, '%') + '</td>';
+      tbody += '<td class="num">' + fmtNum(r.benchmarkReturnPct, '%') + '</td>';
+      tbody += '<td class="num ' + cellClass(r.excessReturnPct) + '"' + bestAttr(r.runId, bests, 'excessReturnPct') + '>' + fmtNum(r.excessReturnPct, '%') + '</td>';
+      tbody += '<td class="num"' + bestAttr(r.runId, bests, 'maxDrawdownPct') + '>' + fmtNum(r.maxDrawdownPct, '%') + '</td>';
+      tbody += '<td class="num">' + fmtNum(r.winRatePct, '%') + '</td>';
+      tbody += '<td class="num">' + (r.tradeCount != null ? r.tradeCount : '—') + '</td>';
+      tbody += '<td class="num"' + bestAttr(r.runId, bests, 'sharpeRatio') + '>' + fmtNum(r.sharpeRatio, '') + '</td>';
+      tbody += '<td class="num">' + (r.realizedPnl != null ? (r.realizedPnl >= 0 ? '+' : '') + r.realizedPnl.toFixed(0) : '—') + '</td>';
+      tbody += '<td class="num">' + (r.totalFees != null ? r.totalFees.toFixed(0) : '—') + '</td>';
+      tbody += '<td><span class="status-badge ' + (r.status || '') + '">' + (r.status || '—') + '</span></td>';
+      tbody += '</tr>';
+    });
+    tbody += '</tbody>';
+
+    table.innerHTML = thead + tbody;
+  }
+
+  // --- Helpers ---
+  function fmtNum(val, unit) {
+    if (val == null) return '—';
+    var sign = val >= 0 ? '+' : '';
+    return sign + Number(val).toFixed(2) + unit;
+  }
+
+  function cellClass(val) {
+    if (val == null) return '';
+    return val >= 0 ? 'positive' : 'negative';
+  }
+
+  function bestAttr(runId, bests, field) {
+    return bests[field] === runId ? ' class="best"' : '';
+  }
+
+  function niceTicks(min, max, count) {
+    var range = max - min;
+    if (range === 0) return [min];
+    var rawStep = range / count;
+    var mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    var step;
+    if (rawStep / mag < 2) step = mag;
+    else if (rawStep / mag < 5) step = 2 * mag;
+    else step = 5 * mag;
+    var ticks = [];
+    var start = Math.ceil(min / step) * step;
+    for (var v = start; v <= max + step * 0.01; v += step) {
+      ticks.push(Math.round(v * 1000) / 1000);
+    }
+    return ticks;
+  }
+
+  // Resize handler
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      renderReturnChart();
+      renderDDChart();
+    }, 200);
+  });
+
+  init();
+})();
+</script>
+
+</body>
+</html>

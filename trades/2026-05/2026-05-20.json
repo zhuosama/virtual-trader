@@ -1,0 +1,37 @@
+{
+  "date": "2026-05-20",
+  "is_trading_day": true,
+  "market_summary": {},
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "sell",
+      "code": "002415",
+      "name": "海康威视",
+      "type": "stock",
+      "price": 32.55,
+      "shares": 1500,
+      "amount": 48825.0,
+      "commission": 14.65,
+      "stamp_tax": 48.83,
+      "transfer_fee": 0.98,
+      "total_cost": 64.46,
+      "net_amount": 48760.54,
+      "signal": "持有37天无收益，超过时间止损20天",
+      "strategy_ref": "risk_controller",
+      "realized_pnl": -230.06,
+      "execution_type": "executed",
+      "source": "auto_risk_reduction",
+      "generated_at": "2026-05-20T09:30:47.318055",
+      "rationale": "deterministic reduce-only risk rule"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 995427.74,
+      "daily_pnl": -2085.0,
+      "daily_pnl_pct": -0.21
+    }
+  }
+}

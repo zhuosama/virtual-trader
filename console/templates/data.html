@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Manager · Hermes Console</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --border: #2a2d3e;
+    --ink: #e8e9ed; --muted: #6b7089; --accent: #4f8ff7;
+    --positive: #326d36; --negative: #c0392b;
+    --mono: 'SF Mono','Cascadia Code','Consolas', monospace;
+    --sans: -apple-system,'Segoe UI', system-ui, sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); line-height: 1.6; min-height: 100vh; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
+  .header nav a:hover, .header nav a.active { color: var(--ink); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .ops-strip { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 1rem; margin-bottom: 1.5rem; border: 1px solid var(--border); border-left: 3px solid var(--positive); border-radius: 6px; background: var(--surface); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+  .ops-strip.degraded { border-left-color: var(--negative); }
+  .ops-strip strong { color: var(--ink); font-weight: 600; }
+  .ops-strip .issue { color: var(--negative); }
+  .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
+  .section-title:first-child { margin-top: 0; }
+
+  /* Account cards */
+  .account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+  .account-card { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  .account-card .card-head { display: flex; justify-content: space-between; align-items: baseline; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--border); }
+  .account-card .card-head .label { font-family: var(--mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .account-card .card-head .id { font-family: var(--mono); font-size: .75rem; color: var(--accent); }
+  .account-card .card-body { padding: 1rem 1.25rem; }
+  .account-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
+
+  .metric-big { margin-bottom: 1rem; }
+  .metric-big .label { font-size: .75rem; color: var(--muted); }
+  .metric-big .value { font-size: 1.5rem; font-weight: 700; font-family: var(--mono); }
+  .positive { color: var(--positive); }
+  .negative { color: var(--negative); }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  .metric-item { padding: .5rem; border: 1px solid var(--border); border-radius: 4px; }
+  .metric-item .label { font-family: var(--mono); font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .metric-item .value { font-family: var(--mono); font-size: .9rem; font-weight: 600; }
+
+  /* Positions table */
+  .positions-section { margin-top: 1rem; padding-top: .75rem; border-top: 1px solid var(--border); }
+  .positions-title { font-family: var(--mono); font-size: .65rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: .5rem; }
+  .positions-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .positions-table th { font-family: var(--mono); font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .375rem .5rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .positions-table td { padding: .375rem .5rem; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: .8rem; }
+  .positions-table tr:last-child td { border-bottom: none; }
+  .positions-table .code { color: var(--accent); font-weight: 600; }
+  .positions-table .num { text-align: right; }
+
+  /* Workflow table */
+  .workflow-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .workflow-table th { font-family: var(--mono); font-size: .65rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .5rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .workflow-table td { padding: .5rem; border-bottom: 1px solid var(--border); }
+  .workflow-table tr:hover td { background: rgba(79,143,247,.04); }
+  .workflow-table .filename { font-family: var(--mono); font-size: .75rem; color: var(--ink); word-break: break-all; }
+  .workflow-table .meta { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+  .workflow-table .status { font-family: var(--mono); font-size: .7rem; padding: .0625rem .375rem; border: 1px solid var(--border); border-radius: 3px; text-transform: uppercase; letter-spacing: .04em; }
+
+  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: .7rem; color: var(--muted); text-align: center; }
+  .empty { color: var(--muted); font-size: .85rem; padding: 1rem 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Console · Data Manager</h1>
+  <nav>
+    <a href="/console/virtual-trader">Home</a>
+    <a href="/console/virtual-trader/data" class="active">Data</a>
+    <a href="/console/virtual-trader/strategies">Strategies</a>
+  </nav>
+</div>
+
+<div class="main">
+  <div id="ops-strip" class="ops-strip"></div>
+
+  <div class="section-title">Accounts</div>
+  <div class="account-grid" id="accounts-grid"></div>
+
+  <div class="section-title">Workflow Artifacts</div>
+  <div id="workflows-container"></div>
+
+  <div class="footer">
+    Data Manager · read-only · secret fields masked · 127.0.0.1 only
+  </div>
+</div>
+
+<script>
+(function() {
+  const data = __DATA_JSON__;
+  renderOpsStrip(data.health);
+
+  // ---- Accounts ----
+  const grid = document.getElementById('accounts-grid');
+  if (!data.accounts || data.accounts.length === 0) {
+    grid.innerHTML = '<p class="empty">No accounts found.</p>';
+  } else {
+    grid.innerHTML = data.accounts.map(function(a) {
+      const pnlClass = (a.total_pnl_pct || 0) >= 0 ? 'positive' : 'negative';
+      const sign = (a.total_pnl_pct || 0) >= 0 ? '+' : '';
+
+      let positionsHtml = '';
+      if (a.positions && a.positions.length > 0) {
+        const rows = a.positions.map(function(p) {
+          const posPnl = p.pnl_pct != null ? p.pnl_pct : p.unrealized_pnl_pct;
+          const pPnlClass = (posPnl || 0) >= 0 ? 'positive' : 'negative';
+          const pSign = (posPnl || 0) >= 0 ? '+' : '';
+          return '<tr>' +
+            '<td class="code">' + escapeHtml(p.code || p.stock_code || '—') + '</td>' +
+            '<td>' + escapeHtml(p.name || '—') + '</td>' +
+            '<td class="num">' + (p.shares || p.quantity || '—') + '</td>' +
+            '<td class="num">' + (p.avg_cost || p.cost_price ? Number(p.avg_cost || p.cost_price).toFixed(2) : '—') + '</td>' +
+            '<td class="num">' + (p.current_price ? Number(p.current_price).toFixed(2) : '—') + '</td>' +
+            '<td class="num ' + pPnlClass + '">' + (posPnl != null ? pSign + Number(posPnl).toFixed(2) + '%' : '—') + '</td>' +
+          '</tr>';
+        }).join('');
+
+        positionsHtml = '<div class="positions-section">' +
+          '<div class="positions-title">Positions (' + a.positions.length + ')</div>' +
+          '<table class="positions-table">' +
+          '<thead><tr><th>Code</th><th>Name</th><th>Qty</th><th>Cost</th><th>Price</th><th>P&L</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>';
+      }
+
+      return '<div class="account-card">' +
+        '<div class="card-head"><span class="label">' + escapeHtml(a.id || '') + '</span><span class="id">' + escapeHtml(a.name || '') + '</span></div>' +
+        '<div class="card-body">' +
+        '<div class="metric-big"><div class="label">Total Return</div><div class="value ' + pnlClass + '">' + sign + Number(a.total_pnl_pct || 0).toFixed(2) + '%</div></div>' +
+        '<div class="metric-grid">' +
+        '<div class="metric-item"><div class="label">Daily</div><div class="value ' + ((a.daily_pnl_pct || 0) >= 0 ? 'positive' : 'negative') + '">' + ((a.daily_pnl_pct || 0) >= 0 ? '+' : '') + Number(a.daily_pnl_pct || 0).toFixed(2) + '%</div></div>' +
+        '<div class="metric-item"><div class="label">Drawdown</div><div class="value">' + (a.max_drawdown != null ? (a.max_drawdown * 100).toFixed(2) + '%' : '—') + '</div></div>' +
+        '<div class="metric-item"><div class="label">Position</div><div class="value">' + (a.position_pct != null ? Number(a.position_pct).toFixed(1) + '%' : '—') + '</div></div>' +
+        '<div class="metric-item"><div class="label">Win Rate</div><div class="value">' + (a.win_rate != null ? (a.win_rate * 100).toFixed(0) + '%' : '—') + '</div></div>' +
+        '<div class="metric-item"><div class="label">Trades</div><div class="value">' + (a.trade_count || '—') + '</div></div>' +
+        '<div class="metric-item"><div class="label">Sharpe</div><div class="value">' + (a.sharpe_ratio != null ? Number(a.sharpe_ratio).toFixed(2) : '—') + '</div></div>' +
+        '</div>' +
+        positionsHtml +
+        '</div></div>';
+    }).join('');
+  }
+
+  // ---- Workflows ----
+  const wfContainer = document.getElementById('workflows-container');
+  if (!data.workflows || data.workflows.length === 0) {
+    wfContainer.innerHTML = '<p class="empty">No workflow artifacts found.</p>';
+  } else {
+    const rows = data.workflows.map(function(w) {
+      const modDate = w.modified ? new Date(w.modified).toLocaleString('zh-CN') : '—';
+      const sizeKb = w.size_bytes ? (w.size_bytes / 1024).toFixed(1) + ' KB' : '—';
+      const diagnostics = formatWorkflowDiagnostics(w);
+      return '<tr>' +
+        '<td class="filename">' + escapeHtml(w.filename || '—') + '</td>' +
+        '<td class="meta">' + escapeHtml(w.workflow_type || w.type || '—') + '</td>' +
+        '<td class="meta">' + modDate + '</td>' +
+        '<td class="meta">' + sizeKb + '</td>' +
+        '<td><span class="status">' + escapeHtml(w.status || '—') + '</span></td>' +
+        '<td class="meta">' + diagnostics + '</td>' +
+      '</tr>';
+    }).join('');
+
+    wfContainer.innerHTML = '<table class="workflow-table">' +
+      '<thead><tr><th>Filename</th><th>Type</th><th>Modified</th><th>Size</th><th>Status</th><th>Diagnostics</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderOpsStrip(health) {
+    var el = document.getElementById('ops-strip');
+    if (!el) return;
+    health = health || {};
+    var status = health.status || 'unknown';
+    var latest = health.latestWorkflow || {};
+    var ledger = health.ledger || {};
+    var issues = health.issues || [];
+    el.className = 'ops-strip ' + (status === 'degraded' ? 'degraded' : '');
+    el.innerHTML =
+      '<span><strong>Health</strong> ' + escapeHtml(status) + '</span>' +
+      '<span><strong>Latest</strong> ' + escapeHtml((latest.workflow_type || latest.type || '—') + '/' + (latest.status || '—')) + '</span>' +
+      '<span><strong>Ledger</strong> ' + escapeHtml(ledger.passed ? 'PASS' : '—') + '</span>' +
+      '<span><strong>Risk</strong> ' + escapeHtml(health.pendingRiskActions || 0) + '</span>' +
+      '<span><strong>Audit</strong> ' + escapeHtml(health.pendingAuditRetries || 0) + '</span>' +
+      '<span class="issue"><strong>Issues</strong> ' + escapeHtml(issues.length ? issues.join('; ') : 'none') + '</span>';
+  }
+
+  function formatWorkflowDiagnostics(w) {
+    var parts = [];
+    if (w.warningCount) {
+      parts.push('warnings: ' + w.warningCount + summarize(w.warningSummary));
+    }
+    if (w.eventCount) {
+      parts.push('events: ' + w.eventCount + summarize(w.eventSummary));
+    }
+    if (w.status === 'degraded' && parts.length === 0) {
+      parts.push('no diagnostic data');
+    }
+    return parts.length ? escapeHtml(parts.join(' | ')) : '—';
+  }
+
+  function summarize(items) {
+    if (!items || !items.length) return '';
+    return ' · ' + items.join(' / ');
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(s == null ? '' : String(s)));
+    return div.innerHTML;
+  }
+})();
+</script>
+
+</body>
+</html>

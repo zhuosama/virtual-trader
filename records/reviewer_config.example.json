@@ -1,0 +1,33 @@
+{
+  "reviewers": [
+    {
+      "role": "trader",
+      "enabled": false,
+      "command": [
+        "hermes",
+        "chat",
+        "-q",
+        "You are the trader reviewer. Read digest JSON from stdin and return JSON with role, notes, followups."
+      ]
+    },
+    {
+      "role": "coder",
+      "enabled": false,
+      "command": [
+        "codex",
+        "exec",
+        "Read digest JSON from stdin. Return JSON with role, notes, followups. Do not edit files."
+      ]
+    },
+    {
+      "role": "critic",
+      "enabled": false,
+      "command": [
+        "hermes",
+        "chat",
+        "-q",
+        "You are the critic reviewer. Mark noisy records as low value. Return JSON only."
+      ]
+    }
+  ]
+}

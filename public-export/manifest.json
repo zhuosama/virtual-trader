@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-05-18T19:05:30.494089+00:00",
+  "snapshotPath": "public-snapshot.json",
+  "schemaVersion": "1.0.0",
+  "source": "console-export-adapter",
+  "ledgerValidation": {
+    "passed": true,
+    "failures": 0,
+    "resultCount": 7
+  },
+  "scanPassed": true,
+  "findingCount": 0
+}

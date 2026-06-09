@@ -28,7 +28,7 @@
         "total_position_floor": 0.5,
         "initial_position": 0.08,
         "batch_building": "分3批建仓，每批间隔3-5个交易日，单批不超过8%，首周目标50%仓位",
-        "cash_drag_alert": "仓位低于50%时触发强制加仓流程，每周至少执行1笔买入",
+        "cash_drag_alert": "仓位低于50%时触发信号扫描——若 watchlist 中无符合入场条件的标的，保持现金，由 review_agent 在周末复盘里记录'本周低仓位的具体理由（无信号 / 风格不利 / 估值贵）'。不为执行而执行。",
         "post_sell_replacement": "清仓后48h内必须制定补仓计划，释放资金不得闲置超过3个交易日"
       },
       "commodity_stock_rules": {
@@ -85,7 +85,18 @@
       "【回测v1.0.5】核心问题是现金拖累而非选股失误：7只持仓5只盈利，但63%资金闲置",
       "【回测v1.0.5】建仓节奏必须加快：首周目标50%，两周内达到65%",
       "【回测v1.0.5】单笔建仓下限4%：避免1-2%的无效小仓位",
-      "【回测v1.0.5】清仓后必须48h内补仓：茅台清仓释放14万闲置至今"
+      "【回测v1.0.5】清仓后必须48h内补仓：茅台清仓释放14万闲置至今",
+      "【5/15教训】风控死锁：risk_controller只REJECTED不减仓+strategy_maintainer反复收紧max_single_position=系统停摆14天",
+      "【5/15教训】coordinator不执行交易/结算：post_market只做复盘+策略迭代，必须有独立settlement步骤",
+      "【5/15教训】status永远success掩盖问题：必须区分success/degraded/failed",
+      "【5/15教训】LLM缺失时audit BLOCKED，不允许绕过审计层直接apply_adjustments",
+      "任何历史数据修复必须先定义 ledger invariants，修复后跑校验",
+      "测试不得使用真实 VTRADER_HOME，必须 tempdir + mock",
+      "workflow status 不能永远 success，必须区分 success/degraded/failed",
+      "回补交易必须标注 execution_type: executed/backfill/simulated",
+      "HS300 benchmark 绝不写 0 占位，缺失时标注 reason",
+      "performance_history 按日期 upsert，不 append，防止重复",
+      "三套账(perf/trade/report)必须一致性校验通过才能提交"
     ],
     "cyclical_stock_insights": {
       "commodity_price_impact": "煤价下跌10%→净利润降3-4%，股息率降0.2-0.3个百分点",
@@ -167,7 +178,18 @@
       "【4/30教训】寒武纪止盈后次日涨停+20%，AI/半导体高弹性股12%止盈线偏保守",
       "【4/30改进方向】高弹性板块应分批止盈：首次50%仓位止盈，剩余用5% trailing stop跟踪",
       "【4/30验证】中芯国际止盈+14.26%成功，动量策略第2次成功止盈（累计立讯+15.7%、中芯+14.3%）",
-      "【W18教训】寒武纪12%止盈后次日涨停+20%，高弹性股需要分批止盈：先止盈50%锁定利润，剩余用trailing stop跟踪"
+      "【W18教训】寒武纪12%止盈后次日涨停+20%，高弹性股需要分批止盈：先止盈50%锁定利润，剩余用trailing stop跟踪",
+      "【5/15教训】风控死锁：risk_controller只REJECTED不减仓+strategy_maintainer反复收紧max_single_position=系统停摆14天",
+      "【5/15教训】coordinator不执行交易/结算：post_market只做复盘+策略迭代，必须有独立settlement步骤",
+      "【5/15教训】status永远success掩盖问题：必须区分success/degraded/failed",
+      "【5/15教训】LLM缺失时audit BLOCKED，不允许绕过审计层直接apply_adjustments",
+      "任何历史数据修复必须先定义 ledger invariants，修复后跑校验",
+      "测试不得使用真实 VTRADER_HOME，必须 tempdir + mock",
+      "workflow status 不能永远 success，必须区分 success/degraded/failed",
+      "回补交易必须标注 execution_type: executed/backfill/simulated",
+      "HS300 benchmark 绝不写 0 占位，缺失时标注 reason",
+      "performance_history 按日期 upsert，不 append，防止重复",
+      "三套账(perf/trade/report)必须一致性校验通过才能提交"
     ]
   }
 }

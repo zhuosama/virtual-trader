@@ -1,0 +1,88 @@
+{
+  "date": "2026-05-18",
+  "is_trading_day": true,
+  "market_summary": {},
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "sell",
+      "code": "000651",
+      "name": "格力电器",
+      "type": "stock",
+      "price": 39.71,
+      "shares": 800,
+      "amount": 31768.0,
+      "commission": 9.53,
+      "stamp_tax": 31.77,
+      "transfer_fee": 0.64,
+      "total_cost": 41.94,
+      "net_amount": 31726.06,
+      "signal": "仓位12.9%超过10%限制",
+      "strategy_ref": "risk_controller",
+      "realized_pnl": 1761.82,
+      "execution_type": "executed",
+      "source": "auto_risk_reduction",
+      "generated_at": "2026-05-18T09:30:55.441274",
+      "rationale": "deterministic reduce-only risk rule"
+    },
+    {
+      "account": "lab",
+      "time": "15:00",
+      "action": "sell",
+      "code": "300124",
+      "name": "汇川技术",
+      "type": "stock",
+      "price": 77.36,
+      "shares": 200,
+      "amount": 15472.0,
+      "commission": 5,
+      "stamp_tax": 15.47,
+      "transfer_fee": 0.31,
+      "total_cost": 20.78,
+      "net_amount": 15451.22,
+      "signal": "仓位24.3%超过20%限制",
+      "strategy_ref": "risk_controller",
+      "realized_pnl": 1237.22,
+      "execution_type": "executed",
+      "source": "auto_risk_reduction",
+      "generated_at": "2026-05-18T09:30:55.443768",
+      "rationale": "deterministic reduce-only risk rule"
+    },
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "sell",
+      "code": "600036",
+      "name": "招商银行",
+      "type": "stock",
+      "price": 37.47,
+      "shares": 800,
+      "amount": 29976.0,
+      "commission": 8.99,
+      "stamp_tax": 29.98,
+      "transfer_fee": 0.6,
+      "total_cost": 39.57,
+      "net_amount": 29936.43,
+      "signal": "持有21天无收益，超过时间止损20天",
+      "strategy_ref": "risk_controller",
+      "realized_pnl": -1412.93,
+      "execution_type": "executed",
+      "source": "auto_risk_reduction",
+      "generated_at": "2026-05-18T09:30:55.451412",
+      "rationale": "deterministic reduce-only risk rule"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 996548.2,
+      "daily_pnl": -2242.0,
+      "daily_pnl_pct": -0.22
+    },
+    "lab": {
+      "total_value": 318792.4,
+      "daily_pnl": 229.0,
+      "daily_pnl_pct": 0.07
+    }
+  }
+}

@@ -65,6 +65,81 @@ graph TD
     BT[backtest_engine.py<br/>748 LOC] -.->|offline validation| STRAT
 ```
 
+### Audit Layer (v2026-05-14)
+
+Strategy proposals from `strategy_maintainer.py` are gated by an independent
+audit layer before any change reaches `active.json`:
+
+- **Overfitting Auditor**: rejects single-event-triggered strategy changes
+  and OOS-degrading proposals (strategy type only)
+- **Risk Auditor**: rejects proposals that weaken stops or violate
+  `references/risk-rules.md` (all types)
+- **Cost & Execution Auditor**: rejects T+0 assumptions, turnover increases
+  without signal-strength compensation, or impossible liquidity assumptions
+  (all types)
+
+Decision rule: **3/3 unanimous approve → auto-merge**; 2/3 → human review;
+≤1/3 → auto-reject with feedback to `review_agent`. INFRA_ERROR (timeout /
+malformed LLM response) → pending retry, never fed back as strategy signal.
+
+See `~/.hermes/specs/2026-05-14-virtual-trader-audit-layer-design.md` for
+the full design.
+
+### Risk Automation (v2026-05-16)
+
+Reduce-only risk controls are deterministic and do not require manual
+judgment:
+
+- single-position concentration breaches generate board-lot sell sizes
+  (`sell_shares`) to bring the holding back under its account limit;
+- stop-loss and time-stop rules generate deterministic full-position sell
+  actions, never buy actions;
+- trading-day post-market workflows auto-execute deterministic
+  `auto_execute=true` sell actions in the virtual ledger;
+- non-trading-day workflows persist those actions to `actions/pending.json`
+  for the next trading-day workflow instead of pretending a weekend fill;
+- all executed risk reductions are recorded as `source=auto_risk_reduction`
+  in the daily trade file.
+
+The current limits are 10% single-stock exposure for `main` and 20% for
+`lab`; see `agents/risk_controller.py` and `references/risk-rules.md`.
+Open reduce-only actions are visible in the local console health payload and
+`GET /api/virtual-trader/risk-actions`. Humans should not decide whether to
+execute concentration/stop/time-stop reductions; if a deterministic action is
+`auto_execute=true`, the next trading-day post-market workflow executes it or
+records an explicit failure.
+
+### Runtime Health
+
+The local console `/health` endpoint reports business health, not just HTTP
+liveness. It degrades when the latest workflow failed/degraded, ledger
+validation fails, risk actions are pending, or audit retry proposals remain.
+Ledger validation is cached briefly and protected by a lock so health probes
+do not overload the validator.
+
+`/api/virtual-trader/health` is an alias for the same business-health payload.
+The console management pages render that health strip on Data, Strategies,
+Backtests, and Export so operators do not lose system context while drilling
+into a page. Console write actions (`backtests`, `public-snapshot`,
+`import-to-site`) append sanitized summaries to `logs/admin_actions.jsonl`.
+The health payload also includes `publicExport` freshness so the console and
+website can distinguish fresh, stale, missing, and invalid public snapshots.
+
+Public export is gated by the same strict ledger validator. If
+`scripts/validate_ledger_consistency.py --strict` fails, the console export
+adapter refuses to write `public-export/public-snapshot.json`; the website must
+not publish a snapshot that the local ledger cannot reconcile. The export
+manifest records the ledger validation summary used for that write, and the
+snapshot itself includes a public `trustState` block with freshness, ledger,
+audit, and recent workflow status for website display.
+
+### LLM Configuration
+
+Agent LLMs first read `DEEPSEEK_API_KEY` from the process environment, then
+`agents/config.json`, then Hermes user configuration (`~/.hermes/config.yaml`
+and `~/.hermes/.env`). This keeps API keys out of repo-local files while
+allowing cron-launched workflows to initialize the audit layer.
+
 5 specialized agents coordinated by a central coordinator:
 
 | Agent | LOC | Responsibility |
@@ -163,8 +238,20 @@ Each version triggered by a specific real-trading lesson — see
 # Backup
 scripts/backup.sh
 
-# Integrity check
-scripts/check_integrity.sh
+# Ledger and invariant check
+python3 scripts/validate_ledger_consistency.py --strict
+
+# Unit tests
+python3 -m unittest discover tests/audit_layer
+
+# Local console
+python3 console/server.py --port 8765
+
+# Trading workflows
+cd agents
+python3 coordinator.py --workflow pre_market
+python3 coordinator.py --workflow post_market
+python3 coordinator.py --workflow weekly_review
 
 # Generate performance charts (and upload)
 python3 ~/.hermes/scripts/generate_charts.py [--upload]
@@ -172,13 +259,29 @@ python3 ~/.hermes/scripts/generate_charts.py [--upload]
 # Run backtest
 python3 backtest/backtest_engine.py
 
-# Execute trade (single trade)
+# Execute trade (single trade; manual operational tool)
 python3 scripts/execute_trade.py
 
 # Update accounts and performance
 python3 scripts/update_accounts.py
 python3 scripts/update_perf.py
 ```
+
+### Operational Rules
+
+- Run `post_market` only after the A-share close. It performs settlement,
+  executes pending deterministic risk reductions, retries audit proposals, and
+  then runs strategy maintenance through the audit layer.
+- Do not hand-edit account, trade, performance, or report files to make a
+  validator pass. Fix the source workflow or run the documented backfill
+  process in `docs/data-backfill-runbook.md`.
+- `workflow_pre_market_*` artifacts are not ledger settlement dates. Ledger
+  coverage is enforced from trade files, daily reports, performance history,
+  and settlement-bearing post-market workflows.
+- Public export is a two-step local process: write a sanitized snapshot into
+  `public-export/`, then import it into the local site. Neither step deploys or
+  pushes to GitHub. Site import requires the snapshot `trustState` block so the
+  website can display data freshness and validation status.
 
 ### Environment Variables
 

@@ -1,0 +1,200 @@
+{
+  "$schema": "./h34_shadow_account_config.schema.json",
+  "_meta": {
+    "plan_id": "H34",
+    "label": "deep_value_top8 Shadow Account Trial",
+    "generated_at": "2026-05-21T02:00:00Z",
+    "based_on": [
+      "H32_pit_robustness_report.md",
+      "H33_execution_audit_report.md",
+      "H34_turnover_optimization_report.md"
+    ],
+    "base_report": "reports/h34_shadow_account_plan.md",
+    "status": "draft",
+    "non_destructive": true,
+    "production_strategy_untouched": true
+  },
+
+  "account": {
+    "id": "shadow_deep_value_top8",
+    "name": "Deep Value Top8 Shadow Account",
+    "mode": "paper",
+    "auto_live_orders": false,
+    "initial_capital": 300000,
+    "currency": "CNY",
+    "inception_date": null,
+    "parent_account": null,
+    "tags": ["shadow", "paper", "value", "deep_value_top8", "cautious_trial"]
+  },
+
+  "strategy": {
+    "id": "deep_value_top8_shadow",
+    "base_strategy": "deep_value_top8",
+    "source": "backtest/experiments/fundamental_backtest.py",
+    "params": {
+      "top_n": 8,
+      "max_position_pct": 0.08,
+      "stop_loss_pct": 0.08,
+      "take_profit_pct": 0.22,
+      "quality_filter": 0.30
+    },
+    "param_rationale": {
+      "max_position_pct_reduced": "H32 sensitivity favored 0.08; H34 confirmed it as the practical shadow compromise with monthly turnover below warning, annualized turnover borderline, and better drawdown than base 0.12",
+      "take_profit_pct_reduced": "H32 sensitivity: 0.22 produced Sharpe 2.06 with +28.58% vs base 0.25 at Sharpe 2.18 with +30.75% — marginal return improvement cost not worth risk"
+    }
+  },
+
+  "caps": {
+    "position": {
+      "max_single_pct": 0.08,
+      "max_single_amount": 24000,
+      "max_top3_pct": 0.20,
+      "max_top3_amount": 60000,
+      "min_single_pct": 0.03,
+      "min_single_amount": 9000,
+      "max_total_exposure_pct": 0.80,
+      "max_total_exposure_amount": 240000,
+      "min_cash_reserve_pct": 0.10,
+      "min_cash_reserve_amount": 30000
+    },
+    "turnover": {
+      "monthly_one_way_max_pct": 0.75,
+      "monthly_one_way_warn_pct": 0.40,
+      "annualized_max_x": 3.0,
+      "annualized_warn_x": 1.5,
+      "daily_trade_max": 12,
+      "daily_trade_warn": 8,
+      "weekly_rebalance_max": 3,
+      "weekly_rebalance_warn": 2
+    }
+  },
+
+  "data_quality_gates": {
+    "price_recency_max_days": 5,
+    "filing_delay_max_days": 90,
+    "survivorship_halt_max_days": 10,
+    "pit_coverage_min_pct": 0.90,
+    "liquidity_min_daily_amount": 10000000,
+    "liquidity_avg_days": 20
+  },
+
+  "liquidity_participation": {
+    "max_trade_pct_of_daily_amount_pass": 0.02,
+    "max_trade_pct_of_daily_amount_warn": 0.05,
+    "max_trade_pct_of_daily_amount_block": 0.05,
+    "daily_amount_floor": 10000000,
+    "base_slippage_bps": 5,
+    "slippage_per_participation_bps": 2,
+    "impact_cost_estimate_enabled": true
+  },
+
+  "stop_conditions": [
+    {
+      "id": "max_drawdown",
+      "threshold": -0.12,
+      "metric": "peak_to_trough",
+      "action": "halt_and_close_all",
+      "description": "Max drawdown exceeds 12% — full halt, close all positions, switch to cash"
+    },
+    {
+      "id": "monthly_loss",
+      "threshold": -0.08,
+      "metric": "calendar_month_return",
+      "action": "pause_10_days_and_review",
+      "description": "Loss exceeds 8% in any calendar month — pause 10 trading days, mandatory review"
+    },
+    {
+      "id": "consecutive_losers",
+      "threshold": 5,
+      "metric": "consecutive_losing_trades",
+      "action": "pause_and_param_review",
+      "description": "5 consecutive losing trades — pause, review strategy parameters"
+    },
+    {
+      "id": "data_outage",
+      "threshold": 3,
+      "metric": "consecutive_days_missing_price",
+      "action": "halt_no_new_positions",
+      "description": "Price data missing > 3 consecutive trading days — halt, no new positions"
+    },
+    {
+      "id": "survivorship_fail",
+      "metric": "survivorship_bias_detected",
+      "action": "emergency_exit_and_investigate",
+      "description": "Survivorship bias detected in active positions — emergency exit + data investigation"
+    },
+    {
+      "id": "turnover_block_monthly",
+      "threshold": 0.75,
+      "metric": "monthly_one_way_turnover",
+      "action": "freeze_buys_5_days",
+      "description": "Monthly turnover exceeds 75% — freeze all new buys for 5 trading days"
+    },
+    {
+      "id": "turnover_block_annualized",
+      "threshold": 3.0,
+      "metric": "annualized_turnover",
+      "action": "freeze_and_senior_review",
+      "description": "Annualized turnover exceeds 3.0x — freeze + trigger senior review, promotion clock resets"
+    }
+  ],
+
+  "review_cadence": {
+    "daily": {
+      "tasks": ["P&L check", "data gate pass/fail", "turnover tracker update"],
+      "responsible": "automated"
+    },
+    "weekly": {
+      "tasks": ["Performance vs benchmark", "open position review", "stop condition scan"],
+      "responsible": "review_agent"
+    },
+    "monthly": {
+      "tasks": [
+        "Full return attribution",
+        "Turnover analysis",
+        "Concentration report",
+        "H32/H33 gate re-evaluation",
+        "Stop condition audit"
+      ],
+      "responsible": "coordinator"
+    },
+    "quarterly": {
+      "tasks": ["Strategy viability review", "Promote/halt/modify decision"],
+      "responsible": "coordinator + human"
+    }
+  },
+
+  "promotion_criteria": {
+    "minimum_observation_months": 6,
+    "minimum_absolute_return_pct": 0.0,
+    "minimum_sharpe_ratio": 1.0,
+    "max_drawdown_limit_pct": 10.0,
+    "max_monthly_turnover_avg_pct": 50.0,
+    "max_annualized_turnover_x": 2.0,
+    "min_positive_months_out_of_last_6": 4,
+    "require_oos_window_test": true,
+    "oos_window": "fresh_window_not_used_in_H32",
+    "oos_sharpe_minimum": 0.0,
+    "require_no_stop_triggered": true,
+    "require_human_signoff": true,
+    "criteria_fail_extended_months": 3,
+    "stop_condition_during_trial_resets_clock": true
+  },
+
+  "logging": {
+    "trade_log_dir": "value_account/logs",
+    "report_dir": "value_account/reports",
+    "daily_pl_check": true,
+    "turnover_tracker": {
+      "enabled": true,
+      "lookback_days": 30,
+      "annualized_multiplier": 0.75
+    },
+    "audit_trail": {
+      "enabled": true,
+      "include_param_changes": true,
+      "include_gate_results": true,
+      "include_stop_events": true
+    }
+  }
+}

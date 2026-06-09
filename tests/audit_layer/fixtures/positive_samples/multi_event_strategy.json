@@ -1,0 +1,19 @@
+{
+  "proposal_id": "positive-strat-001",
+  "proposed_at": "2026-05-14T00:00:00Z",
+  "proposer": "test_fixture",
+  "account": "lab",
+  "change_type": "strategy",
+  "current_version": "1.0.6",
+  "proposed_version": "1.0.7",
+  "diff": [
+    {"path": "lab_strategy.parameters.turnover_rate_min", "old": 5.0, "new": 6.0}
+  ],
+  "triggering_events": [
+    {"date": "2026-04-15", "ticker": "300274", "event": "阳光电源换手 5.2% 但板块未联动，假突破"},
+    {"date": "2026-04-23", "ticker": "002230", "event": "科大讯飞换手 5.4% 同样假突破"},
+    {"date": "2026-04-28", "ticker": "300750", "event": "宁德时代换手 5.1% 上涨后即回调"},
+    {"date": "2026-05-06", "ticker": "688981", "event": "中芯国际换手 5.3% 同模式"}
+  ],
+  "rationale": "4 次不同股票在 turnover 5.0-5.5% 区间内均出现假突破或快速回调。提高门槛到 6% 过滤这种低质量信号。OOS 回测（4 月历史 + 5 月前两周）Sharpe 不退化。"
+}

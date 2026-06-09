@@ -1,0 +1,55 @@
+{
+  "date": "2026-05-07",
+  "is_trading_day": true,
+  "market_summary": {
+    "shanghai_index": {
+      "close": 4180.09,
+      "change_pct": 0.48
+    },
+    "shenzhen_index": {
+      "close": 15641.89,
+      "change_pct": 1.18
+    },
+    "hs300_index": {
+      "close": 4900.51,
+      "change_pct": 0.48
+    },
+    "northbound_flow_billion": null,
+    "total_turnover_billion": 13591
+  },
+  "trades": [
+    {
+      "account": "main",
+      "time": "15:00",
+      "action": "buy",
+      "code": "000651",
+      "name": "格力电器",
+      "type": "stock",
+      "price": 39.89,
+      "shares": 200,
+      "amount": 7978.0,
+      "commission": 5.0,
+      "stamp_tax": 0,
+      "transfer_fee": 0.16,
+      "total_cost": 7983.16,
+      "signal": "v1.0.5补仓规则触发：仓位44.2%低于50%目标线，格力电器三星退出利好+价格稳定",
+      "strategy_ref": "value_trend_v1.0.5",
+      "execution_type": "executed",
+      "source": "live_cron",
+      "generated_at": "2026-05-07T15:00:00",
+      "rationale": "cron agent 实时执行"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1002109.3,
+      "daily_pnl": -4744.16,
+      "daily_pnl_pct": -0.47
+    },
+    "lab": {
+      "total_value": 322776.82,
+      "daily_pnl": 4723.0,
+      "daily_pnl_pct": 1.48
+    }
+  }
+}

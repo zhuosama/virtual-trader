@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Public Export · Hermes Console</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --border: #2a2d3e;
+    --ink: #e8e9ed; --muted: #6b7089; --accent: #4f8ff7;
+    --positive: #326d36; --negative: #c0392b; --warn: #d4a017;
+    --mono: 'SF Mono','Cascadia Code','Consolas', monospace;
+    --sans: -apple-system,'Segoe UI', system-ui, sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--ink); line-height: 1.6; min-height: 100vh; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header h1 { font-size: 1rem; font-weight: 600; }
+  .header nav a { color: var(--muted); text-decoration: none; font-size: .8rem; margin-left: 1.5rem; transition: color .14s; }
+  .header nav a:hover, .header nav a.active { color: var(--ink); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .ops-strip { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: .75rem 1rem; margin-bottom: 1.5rem; border: 1px solid var(--border); border-left: 3px solid var(--positive); border-radius: 6px; background: var(--surface); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+  .ops-strip.degraded { border-left-color: var(--negative); }
+  .ops-strip strong { color: var(--ink); font-weight: 600; }
+  .ops-strip .issue { color: var(--negative); }
+  .section-title { font-family: var(--mono); font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 1rem; }
+  .section-title:first-child { margin-top: 0; }
+
+  .preview-banner { padding: .5rem .75rem; margin-bottom: 1.5rem; border: 1px solid var(--warn); border-radius: 4px; color: var(--warn); font-size: .75rem; font-family: var(--mono); }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: .5rem; padding: .5rem 1.25rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--ink); font-family: var(--sans); font-size: .85rem; font-weight: 600; cursor: pointer; transition: border-color .14s, background .14s; }
+  .btn:hover { border-color: var(--ink); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #3a7ae6; }
+  .btn.danger { background: var(--negative); border-color: var(--negative); color: #fff; }
+  .btn.danger:hover { background: #a93226; }
+
+  .action-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .action-bar .disclaimer { font-size: .75rem; color: var(--muted); font-family: var(--mono); }
+
+  .result-msg { padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1rem; font-size: .85rem; display: none; }
+  .result-msg.success { display: block; background: rgba(50,109,54,.1); border: 1px solid var(--positive); color: var(--positive); }
+  .result-msg.error { display: block; background: rgba(192,57,43,.1); border: 1px solid var(--negative); color: var(--negative); }
+  .result-msg.info { display: block; background: rgba(79,143,247,.1); border: 1px solid var(--accent); color: var(--accent); }
+
+  /* Status card */
+  .status-card { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 1.5rem; margin-bottom: 1.5rem; }
+  .status-card.passed { border-top: 3px solid var(--positive); }
+  .status-card.failed { border-top: 3px solid var(--negative); }
+  .status-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+  .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .status-dot.green { background: var(--positive); }
+  .status-dot.red { background: var(--negative); }
+  .status-label { font-family: var(--mono); font-size: .85rem; font-weight: 700; }
+
+  /* Metric grid */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; }
+  .metric { padding: .5rem; border: 1px solid var(--border); border-radius: 4px; }
+  .metric .label { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .metric .value { font-family: var(--mono); font-size: .9rem; font-weight: 700; }
+
+  /* Field lists */
+  .field-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .5rem; margin-bottom: 1rem; }
+  .field-tag { display: inline-block; padding: .2rem .6rem; border-radius: 3px; font-family: var(--mono); font-size: .75rem; border: 1px solid var(--border); }
+  .field-tag.allowed { color: var(--positive); border-color: var(--positive); background: rgba(50,109,54,.08); }
+  .field-tag.blocked { color: var(--negative); border-color: var(--negative); background: rgba(192,57,43,.08); }
+
+  /* Findings table */
+  .findings-table { width: 100%; border-collapse: collapse; font-size: .78rem; margin-bottom: 1rem; }
+  .findings-table th { font-family: var(--mono); font-size: .6rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); text-align: left; padding: .5rem; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .findings-table td { padding: .5rem; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: .78rem; }
+  .severity-high { color: var(--negative); font-weight: 700; }
+  .severity-warn { color: var(--warn); }
+
+  /* Snapshot preview */
+  .snapshot-json { padding: 1rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); font-size: .72rem; font-family: var(--mono); overflow-x: auto; white-space: pre-wrap; max-height: 500px; overflow-y: auto; line-height: 1.5; }
+
+  /* Strategy cards */
+  .strat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .strat-card { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 1rem; }
+  .strat-card h4 { font-size: .85rem; font-weight: 600; margin-bottom: .5rem; }
+  .strat-card .meta { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+  .strat-card .lessons { font-size: .78rem; }
+  .strat-card .lessons li { margin-bottom: .25rem; }
+
+  .positive { color: var(--positive); }
+  .negative { color: var(--negative); }
+
+  .empty { color: var(--muted); font-size: .85rem; padding: 1rem 0; }
+  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: .7rem; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hermes Console · Public Export</h1>
+  <nav>
+    <a href="/console/virtual-trader">Home</a>
+    <a href="/console/virtual-trader/data">Data</a>
+    <a href="/console/virtual-trader/strategies">Strategies</a>
+    <a href="/console/virtual-trader/backtests">Backtests</a>
+    <a href="/console/virtual-trader/export" class="active">Export</a>
+  </nav>
+</div>
+
+<div class="main">
+  <div id="ops-strip" class="ops-strip"></div>
+
+  <div class="preview-banner">⚠ Preview only — snapshot is NOT written to the public site. This page shows what would be exported; actual publishing requires a separate step.</div>
+
+  <div class="section-title">Export actions</div>
+  <div class="action-bar">
+    <button class="btn" id="btn-dry-run" onclick="exportSnapshot(true)">Dry Run</button>
+    <button class="btn danger" id="btn-write" onclick="exportSnapshot(false)">Write Local Snapshot</button>
+    <span class="disclaimer">Local private gateway only · sanitized · not pushed to GitHub · not copied into site</span>
+  </div>
+  <div id="result-msg" class="result-msg"></div>
+
+  <div id="status-section"></div>
+
+  <div class="section-title">Allowed fields (whitelist)</div>
+  <div class="field-list" id="allowed-fields"></div>
+
+  <div class="section-title">Blocked fields (blacklist)</div>
+  <div class="field-list" id="blocked-fields"></div>
+
+  <div class="section-title">Sensitive scan findings</div>
+  <div id="findings-section"></div>
+
+  <div class="section-title">Snapshot summary</div>
+  <div id="snapshot-summary"></div>
+
+  <div class="section-title">Audit Layer</div>
+  <div id="audit-layer-section"></div>
+
+  <div class="section-title">Strategy overview</div>
+  <div id="strategy-section"></div>
+
+  <div class="section-title">Backtest results</div>
+  <div id="backtest-section"></div>
+
+  <div class="section-title">Snapshot JSON preview</div>
+  <div id="json-preview"></div>
+
+  <div class="section-title">Site Bridge</div>
+  <div class="preview-banner">⚠ Writes only to local obsidian-wiki/site · Does not deploy · Does not push to GitHub · Public snapshot only</div>
+  <div id="site-compat-section" style="margin-bottom:1rem"></div>
+  <div class="action-bar">
+    <button class="btn" id="btn-check-compat" onclick="checkSiteCompat()">Check Site Compatibility</button>
+    <button class="btn" id="btn-dry-import" onclick="importToSite(true)" disabled>Dry Run Import</button>
+    <button class="btn danger" id="btn-import" onclick="importToSite(false)" disabled>Import To Local Site</button>
+  </div>
+  <div id="import-result" class="result-msg"></div>
+
+  <div class="footer">
+    Public Export Safety Foundation · preview only · 127.0.0.1 only · no data written to site
+  </div>
+</div>
+
+<script>
+(function() {
+	  var DATA = __EXPORT_JSON__;
+	  var CONSOLE_NONCE = '__CONSOLE_NONCE__';
+	  var ALLOWED = ['returnPct','dailyReturnSeries','maxDrawdownPct','exposurePct','winRatePct','tradeCount','strategyVersion','agentNames','workflowStatus','backtestChartSeries','sanitizedCaseStudies','generatedAt','auditLayer'];
+  var BLOCKED = ['cash','amount','initial_capital','initialCapital','total_value','totalValue','portfolio_market_value','market_value','avg_cost','buy_price','sell_price','cost','pnl','realized_pnl','unrealized_pnl','shares','api_key','api_secret','secret','token','password','credential','credentials','private_key','broker','broker_account','account_id','account_number','order_id','order_ids','account_config','final_output','raw_output','full_log','reportText','tradeSummary','raw_trades'];
+
+  renderOpsStrip(DATA.health);
+  renderStatus();
+  renderFieldLists();
+  renderFindings();
+  renderSnapshotSummary();
+  renderAuditLayer();
+  renderStrategies();
+  renderBacktests();
+  renderJsonPreview();
+
+  function renderOpsStrip(health) {
+    var el = document.getElementById('ops-strip');
+    if (!el) return;
+    health = health || {};
+    var status = health.status || 'unknown';
+    var latest = health.latestWorkflow || {};
+    var ledger = health.ledger || {};
+    var issues = health.issues || [];
+    el.className = 'ops-strip ' + (status === 'degraded' ? 'degraded' : '');
+    el.innerHTML =
+      '<span><strong>Health</strong> ' + escHtml(status) + '</span>' +
+      '<span><strong>Latest</strong> ' + escHtml((latest.workflow_type || latest.type || '—') + '/' + (latest.status || '—')) + '</span>' +
+      '<span><strong>Ledger</strong> ' + escHtml(ledger.passed ? 'PASS' : '—') + '</span>' +
+      '<span><strong>Risk</strong> ' + escHtml(health.pendingRiskActions || 0) + '</span>' +
+      '<span><strong>Audit</strong> ' + escHtml(health.pendingAuditRetries || 0) + '</span>' +
+      '<span class="issue"><strong>Issues</strong> ' + escHtml(issues.length ? issues.join('; ') : 'none') + '</span>';
+  }
+
+  function renderStatus() {
+    var el = document.getElementById('status-section');
+	    var ok = DATA.ok;
+	    var scan = DATA.scan || {};
+	    var ledger = (DATA.gate || {}).ledger || {};
+	    var cls = ok ? 'passed' : 'failed';
+	    var dot = ok ? 'green' : 'red';
+	    var label = ok ? 'GATES PASSED — safe to export' : 'EXPORT BLOCKED — gate failed';
+
+    var html = '<div class="status-card ' + cls + '">' +
+      '<div class="status-header">' +
+      '<span class="status-dot ' + dot + '"></span>' +
+      '<span class="status-label">' + label + '</span>' +
+      '</div>' +
+      '<div class="metric-grid">' +
+	      metricCard('Generated', DATA.generatedAt ? new Date(DATA.generatedAt).toLocaleString('zh-CN') : '—') +
+	      metricCard('Ledger Gate', ledger.passed ? 'PASS' : 'FAIL') +
+	      metricCard('Scan Passed', scan.passed ? 'YES' : 'NO') +
+	      metricCard('Findings', (scan.findingCount || 0).toString()) +
+      metricCard('High Severity', (scan.highSeverityCount || 0).toString()) +
+      metricCard('Accounts', Object.keys(DATA.snapshot.returnPct || {}).length.toString()) +
+      metricCard('Strategies', Object.keys(DATA.snapshot.strategyVersion || {}).length.toString()) +
+      metricCard('Backtests', (DATA.snapshot.backtestChartSeries || []).length.toString()) +
+      metricCard('Agents', (DATA.snapshot.agentNames || []).length.toString()) +
+      '</div></div>';
+    el.innerHTML = html;
+  }
+
+  function renderFieldLists() {
+    var allowedEl = document.getElementById('allowed-fields');
+    var blockedEl = document.getElementById('blocked-fields');
+
+    allowedEl.innerHTML = ALLOWED.map(function(f) {
+      return '<span class="field-tag allowed">' + f + '</span>';
+    }).join(' ');
+
+    blockedEl.innerHTML = BLOCKED.map(function(f) {
+      return '<span class="field-tag blocked">' + f + '</span>';
+    }).join(' ');
+  }
+
+  function renderFindings() {
+    var el = document.getElementById('findings-section');
+    var findings = (DATA.scan || {}).findings || [];
+
+    if (findings.length === 0) {
+      el.innerHTML = '<p class="empty">No sensitive fields detected. Snapshot is clean.</p>';
+      return;
+    }
+
+    var rows = findings.map(function(f) {
+      var cls = f.severity === 'high' ? 'severity-high' : 'severity-warn';
+      return '<tr><td class="' + cls + '">' + escHtml(f.path) + '</td>' +
+        '<td class="' + cls + '">' + f.severity.toUpperCase() + '</td>' +
+        '<td>' + escHtml(f.reason) + '</td></tr>';
+    }).join('');
+
+    el.innerHTML = '<table class="findings-table">' +
+      '<thead><tr><th>Path</th><th>Severity</th><th>Reason</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderSnapshotSummary() {
+    var el = document.getElementById('snapshot-summary');
+    var snap = DATA.snapshot || {};
+
+    // Accounts
+    var accounts = Object.keys(snap.returnPct || {});
+    if (accounts.length === 0) {
+      el.innerHTML = '<p class="empty">No account data in snapshot.</p>';
+      return;
+    }
+
+    var html = '<div class="metric-grid">';
+    accounts.forEach(function(acc) {
+      var ret = snap.returnPct[acc];
+      var dd = snap.maxDrawdownPct[acc];
+      var wr = snap.winRatePct[acc];
+      var tc = snap.tradeCount[acc];
+      var exp = snap.exposurePct[acc];
+      var retClass = (ret || 0) >= 0 ? 'positive' : 'negative';
+
+      html += '<div class="metric"><div class="label">' + acc + ' Return</div><div class="value ' + retClass + '">' + fmtNum(ret, '%') + '</div></div>';
+      html += '<div class="metric"><div class="label">' + acc + ' MaxDD</div><div class="value">' + fmtNum(dd, '%') + '</div></div>';
+      html += '<div class="metric"><div class="label">' + acc + ' WinRate</div><div class="value">' + fmtNum(wr, '%') + '</div></div>';
+      html += '<div class="metric"><div class="label">' + acc + ' Trades</div><div class="value">' + (tc != null ? tc : '—') + '</div></div>';
+      html += '<div class="metric"><div class="label">' + acc + ' Exposure</div><div class="value">' + fmtNum(exp, '%') + '</div></div>';
+    });
+    html += '</div>';
+
+    // Agent names
+    var agents = snap.agentNames || [];
+    if (agents.length > 0) {
+      html += '<div style="margin-top:1rem;font-size:.8rem"><strong>Agents:</strong> ' + agents.map(escHtml).join(', ') + '</div>';
+    }
+
+    el.innerHTML = html;
+  }
+
+  function renderAuditLayer() {
+    var el = document.getElementById('audit-layer-section');
+    var audit = (DATA.snapshot || {}).auditLayer || {};
+    var enabled = audit.enabled ? 'enabled' : 'unknown';
+    var decision = audit.latestDecision || 'no public audit yet';
+    var reviewedAt = audit.latestReviewedAt || '—';
+    var total = audit.totalReviews != null ? audit.totalReviews : 0;
+
+    el.innerHTML = '<div class="metric-grid">' +
+      metricCard('Gate', enabled) +
+      metricCard('Total Reviews', String(total)) +
+      metricCard('Latest Decision', escHtml(decision)) +
+      metricCard('Latest Reviewed', escHtml(reviewedAt)) +
+      '</div>' +
+      '<p style="font-size:.75rem;color:var(--muted);margin-top:.75rem">' +
+      escHtml(audit.publicDetailPolicy || 'Aggregate status only; private reviewer traces are not exported.') +
+      '</p>';
+  }
+
+  function renderStrategies() {
+    var el = document.getElementById('strategy-section');
+    var versions = (DATA.snapshot || {}).strategyVersion || {};
+    var cases = (DATA.snapshot || {}).sanitizedCaseStudies || [];
+    var accounts = Object.keys(versions);
+
+    if (accounts.length === 0) {
+      el.innerHTML = '<p class="empty">No strategy data.</p>';
+      return;
+    }
+
+    var html = '<div class="strat-grid">';
+    accounts.forEach(function(acc) {
+      html += '<div class="strat-card">' +
+        '<h4>' + escHtml(acc) + ' Strategy</h4>' +
+        '<div class="meta">Version: ' + escHtml(versions[acc] || '—') + '</div>';
+
+      var lessons = cases.filter(function(c) { return c.account === acc; });
+      if (lessons.length > 0) {
+        html += '<div class="lessons"><strong>Lessons:</strong><ul>';
+        lessons.forEach(function(l) {
+          html += '<li>' + escHtml(l.lesson) + '</li>';
+        });
+        html += '</ul></div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function renderBacktests() {
+    var el = document.getElementById('backtest-section');
+    var bts = (DATA.snapshot || {}).backtestChartSeries || [];
+
+    if (bts.length === 0) {
+      el.innerHTML = '<p class="empty">No backtest data.</p>';
+      return;
+    }
+
+    var html = '<table class="findings-table"><thead><tr>' +
+      '<th>Run</th><th>Strategy</th><th>Account</th><th>Period</th>' +
+      '<th>Return</th><th>Benchmark</th><th>Excess</th><th>MaxDD</th>' +
+      '<th>Sharpe</th><th>Trades</th></tr></thead><tbody>';
+
+    bts.forEach(function(b) {
+      var retClass = (b.cumulativeReturnPct || 0) >= 0 ? 'positive' : 'negative';
+      var exClass = (b.excessReturnPct || 0) >= 0 ? 'positive' : 'negative';
+      html += '<tr>' +
+        '<td>' + escHtml(b.runId || '—') + '</td>' +
+        '<td>' + escHtml(b.strategyId || '—') + '</td>' +
+        '<td>' + escHtml(b.account || '—') + '</td>' +
+        '<td>' + (b.startDate || '—') + ' → ' + (b.endDate || '—') + '</td>' +
+        '<td class="' + retClass + '">' + fmtNum(b.cumulativeReturnPct, '%') + '</td>' +
+        '<td>' + fmtNum(b.benchmarkReturnPct, '%') + '</td>' +
+        '<td class="' + exClass + '">' + fmtNum(b.excessReturnPct, '%') + '</td>' +
+        '<td>' + fmtNum(b.maxDrawdownPct, '%') + '</td>' +
+        '<td>' + fmtNum(b.sharpeRatio, '') + '</td>' +
+        '<td>' + (b.tradeCount != null ? b.tradeCount : '—') + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+
+    // Note about dailyReturnSeries
+    html += '<p style="font-size:.75rem;color:var(--muted);margin-top:.5rem">Note: dailyReturnSeries contains only date + dailyReturnPct (no absolute values).</p>';
+
+    el.innerHTML = html;
+  }
+
+  function renderJsonPreview() {
+    var el = document.getElementById('json-preview');
+    var snap = DATA.snapshot || {};
+    el.innerHTML = '<pre class="snapshot-json">' + escHtml(JSON.stringify(snap, null, 2)) + '</pre>';
+  }
+
+  // Helpers
+  function metricCard(label, value) {
+    return '<div class="metric"><div class="label">' + label + '</div><div class="value">' + value + '</div></div>';
+  }
+
+  function fmtNum(val, unit) {
+    if (val == null) return '—';
+    var sign = val >= 0 ? '+' : '';
+    return sign + Number(val).toFixed(2) + unit;
+  }
+
+  function escHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(s)));
+    return div.innerHTML;
+  }
+
+  // Export action
+  window.exportSnapshot = function(dryRun) {
+    var msg = document.getElementById('result-msg');
+    var btnDry = document.getElementById('btn-dry-run');
+    var btnWrite = document.getElementById('btn-write');
+    btnDry.disabled = true;
+    btnWrite.disabled = true;
+    msg.className = 'result-msg info';
+    msg.textContent = dryRun ? 'Running dry-run scan...' : 'Writing local snapshot...';
+
+	    fetch('/api/virtual-trader/export/public-snapshot', {
+	      method: 'POST',
+	      headers: {'Content-Type': 'application/json', 'X-Hermes-Console-Nonce': CONSOLE_NONCE},
+	      body: JSON.stringify({dryRun: dryRun})
+	    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btnDry.disabled = false;
+      btnWrite.disabled = false;
+      if (data.ok && data.written) {
+        msg.className = 'result-msg success';
+        msg.innerHTML = '<strong>Snapshot written</strong><br>' +
+          'Output: ' + escHtml(data.outputPath) + '<br>' +
+          'Manifest: ' + escHtml(data.manifestPath) + '<br>' +
+          'Scan findings: ' + (data.scan.findingCount || 0) + ' (high: ' + (data.scan.highSeverityCount || 0) + ')';
+      } else if (data.ok && data.dryRun) {
+        msg.className = 'result-msg info';
+        msg.innerHTML = '<strong>Dry run passed</strong> — no files written<br>' +
+          'Scan findings: ' + (data.scan.findingCount || 0) + ' (high: ' + (data.scan.highSeverityCount || 0) + ')<br>' +
+          'Accounts: ' + (data.snapshotSummary.accounts || []).join(', ') + '<br>' +
+          'Strategies: ' + (data.snapshotSummary.strategies || []).join(', ');
+      } else {
+        msg.className = 'result-msg error';
+        msg.innerHTML = '<strong>Export blocked</strong> — sensitive fields detected<br>' +
+          'Findings: ' + (data.scan.findingCount || 0) + ' (high: ' + (data.scan.highSeverityCount || 0) + ')';
+      }
+    })
+    .catch(function(err) {
+      btnDry.disabled = false;
+      btnWrite.disabled = false;
+      msg.className = 'result-msg error';
+      msg.textContent = 'Request failed: ' + err.message;
+    });
+  };
+
+  // Site Bridge functions
+  window.checkSiteCompat = function() {
+    var el = document.getElementById('site-compat-section');
+    var btnDry = document.getElementById('btn-dry-import');
+    var btnImport = document.getElementById('btn-import');
+    el.innerHTML = '<p style="color:var(--muted)">Checking compatibility...</p>';
+
+    fetch('/api/virtual-trader/export/site-compatibility')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.compatible) {
+        el.innerHTML = '<div style="padding:.75rem;border:1px solid var(--positive);border-radius:4px;color:var(--positive);font-size:.85rem">' +
+          '<strong>✅ Compatible</strong> — ' + escHtml(d.details) + '<br>' +
+          '<span style="font-size:.75rem;color:var(--muted)">Scan: ' + (d.scan.findingCount || 0) + ' findings, ' + (d.scan.highSeverityCount || 0) + ' high</span></div>';
+        btnDry.disabled = false;
+        btnImport.disabled = false;
+      } else {
+        el.innerHTML = '<div style="padding:.75rem;border:1px solid var(--negative);border-radius:4px;color:var(--negative);font-size:.85rem">' +
+          '<strong>❌ Incompatible</strong> — ' + escHtml(d.details) + '</div>';
+        btnDry.disabled = true;
+        btnImport.disabled = true;
+      }
+    })
+    .catch(function(err) {
+      el.innerHTML = '<p style="color:var(--negative)">Check failed: ' + escHtml(err.message) + '</p>';
+    });
+  };
+
+  window.importToSite = function(dryRun) {
+    var msg = document.getElementById('import-result');
+    var btnDry = document.getElementById('btn-dry-import');
+    var btnImport = document.getElementById('btn-import');
+    btnDry.disabled = true;
+    btnImport.disabled = true;
+    msg.className = 'result-msg info';
+    msg.textContent = dryRun ? 'Running dry-run import...' : 'Importing to local site...';
+
+	    fetch('/api/virtual-trader/export/import-to-site', {
+	      method: 'POST',
+	      headers: {'Content-Type': 'application/json', 'X-Hermes-Console-Nonce': CONSOLE_NONCE},
+	      body: JSON.stringify({dryRun: dryRun})
+	    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btnDry.disabled = false;
+      btnImport.disabled = false;
+      if (data.ok && data.written) {
+        msg.className = 'result-msg success';
+        var files = (data.changedFiles || []).map(function(f) { return escHtml(f); }).join('<br>');
+        msg.innerHTML = '<strong>Imported to local site</strong><br>' +
+          'Changed files:<br>' + files + '<br>' +
+          'Post-scan: ' + (data.postScan.findingCount || 0) + ' findings, ' + (data.postScan.highSeverityCount || 0) + ' high<br>' +
+          '<span style="font-size:.75rem;color:var(--muted)">Not deployed · Not pushed to GitHub</span>';
+      } else if (data.ok && data.dryRun) {
+        msg.className = 'result-msg info';
+        msg.innerHTML = '<strong>Dry run passed</strong> — snapshot is compatible with site importer<br>' +
+          '<span style="font-size:.75rem;color:var(--muted)">No files written to site</span>';
+      } else {
+        msg.className = 'result-msg error';
+        msg.innerHTML = '<strong>Import blocked</strong> — ' + escHtml(data.details || 'unknown error');
+      }
+    })
+    .catch(function(err) {
+      btnDry.disabled = false;
+      btnImport.disabled = false;
+      msg.className = 'result-msg error';
+      msg.textContent = 'Request failed: ' + err.message;
+    });
+  };
+})();
+</script>
+
+</body>
+</html>

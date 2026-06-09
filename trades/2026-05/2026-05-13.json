@@ -1,0 +1,42 @@
+{
+  "date": "2026-05-13",
+  "is_trading_day": true,
+  "market_summary": {
+    "hs300_index": {
+      "close": 4998.34,
+      "change_pct": 1.02
+    }
+  },
+  "trades": [
+    {
+      "account": "main",
+      "action": "sell",
+      "code": "601318",
+      "name": "中国平安",
+      "price": 58.04,
+      "shares": 500,
+      "amount": 29020.0,
+      "total_cost": 38.31,
+      "net_amount": 28981.69,
+      "signal": "时间止损: 持有29天无涨幅",
+      "date": "2026-05-13",
+      "realized_pnl_pct": -1.58,
+      "execution_type": "backfill",
+      "source": "yfinance_replay",
+      "generated_at": "2026-05-15T23:00:00",
+      "rationale": "时间止损: 持有29天无涨幅"
+    }
+  ],
+  "account_snapshots": {
+    "main": {
+      "total_value": 1000303.71,
+      "daily_pnl": -1112.3100000000559,
+      "daily_pnl_pct": -0.11
+    },
+    "lab": {
+      "total_value": 321603.82,
+      "daily_pnl": 1155.0,
+      "daily_pnl_pct": 0.36
+    }
+  }
+}
