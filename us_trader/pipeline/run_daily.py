@@ -76,11 +76,20 @@ def _load_state(config: dict) -> dict:
         except Exception as exc:
             logger.warning("_load_state: failed to read nav_history.json: %s", exc)
 
+    # cash 必须显式持久化读取,不能用 nav 反推(nav 含未实现盈亏,反推会虚增 cash)。
+    cash = None
+    acc_path = os.path.join(STATE_DIR, "account.json")
+    if os.path.exists(acc_path):
+        try:
+            with open(acc_path, "r", encoding="utf-8") as f:
+                cash = json.load(f).get("cash")
+        except Exception as exc:
+            logger.warning("_load_state: failed to read account.json: %s", exc)
+    if cash is None:
+        cash = config["initial_capital"]
+
     return {
-        "cash": config["initial_capital"] if not nav_history and not positions else
-                (nav_history[-1]["nav"] - sum(
-                    p.get("shares", 0) * p.get("cost", 0) for p in positions.values()
-                ) if nav_history else config["initial_capital"]),
+        "cash": cash,
         "positions": positions,
         "nav_history": nav_history,
     }
@@ -89,6 +98,10 @@ def _load_state(config: dict) -> dict:
 def _save_state(state: dict, trades: List[dict], date: str):
     """持久化 positions / nav_history / trades。"""
     _ensure_state_dir()
+
+    # account.json:显式持久化 cash(供下一交易日重载,避免 nav 反推虚增)
+    with open(os.path.join(STATE_DIR, "account.json"), "w", encoding="utf-8") as f:
+        json.dump({"cash": state["cash"]}, f, indent=2)
 
     # positions.json
     with open(os.path.join(STATE_DIR, "positions.json"), "w", encoding="utf-8") as f:

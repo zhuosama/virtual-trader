@@ -8,6 +8,8 @@ from typing import Dict, List
 
 import pandas as pd
 
+from us_trader.pipeline.fetch_fundamentals import to_yahoo_symbol
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,7 +80,6 @@ def select(
             passed = False
 
         # 基本面:从 fundamentals 获取,key 可能是 ts_code 或 yahoo symbol
-        from us_trader.pipeline.fetch_fundamentals import to_yahoo_symbol
         yahoo_sym = to_yahoo_symbol(code)
         fund = fundamentals.get(code) or fundamentals.get(yahoo_sym) or {}
 
