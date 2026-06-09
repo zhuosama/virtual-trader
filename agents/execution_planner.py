@@ -210,6 +210,35 @@ class ExecutionPlannerAgent:
             factor = total_position / total
             weights = {c: w * factor for c, w in weights.items()}
 
+        # 7. 仓位下限抬升（S1 cash-drag fix）：若策略声明了 total_position_floor
+        #    且当前目标仓位低于下限，把闲置资金按当前权重比例注入【已持有/已计划】
+        #    的名称，逐个 water-fill 到 max_single 为止。
+        #    claim-free：只重置策略已选名称的仓位，绝不新增标的（新增=选股 claim，
+        #    属 S3/S6，不在本纯函数职责内）。floor 不超过 total_position 上限；
+        #    所有名称顶满仍达不到 floor 时保留诚实缺口，不伪造仓位。
+        floor = (
+            strat.get('rules', {})
+            .get('position_sizing', {})
+            .get('total_position_floor')
+        )
+        if floor is not None and weights:
+            floor = min(floor, total_position)
+            for _ in range(64):  # bounded water-fill, 收敛到 floor 或全部封顶
+                deficit = floor - sum(weights.values())
+                if deficit <= 1e-9:
+                    break
+                headroom = {c: w for c, w in weights.items() if w < max_single - 1e-12}
+                if not headroom:
+                    break  # 全部触及单票上限 → 诚实缺口
+                base = sum(headroom.values())
+                if base <= 0:
+                    add = deficit / len(headroom)
+                    for c in headroom:
+                        weights[c] = min(max_single, weights[c] + add)
+                else:
+                    for c in list(headroom):
+                        weights[c] = min(max_single, weights[c] + deficit * (weights[c] / base))
+
         return weights
 
     def _generate_bullish_plan(self, sector_strength: List[Dict], risk_signals: List[str]) -> Dict:

@@ -23,7 +23,7 @@ from market_analyst import MarketAnalystAgent
 from execution_planner import ExecutionPlannerAgent
 from risk_controller import RiskControllerAgent
 from review_agent import ReviewAgent
-from strategy_maintainer import StrategyMaintainerAgent
+from strategy_maintainer import StrategyMaintainerAgent, detect_iteration_stall
 import audit_layer
 
 # 配置日志
@@ -1315,7 +1315,11 @@ class MultiAgentCoordinator:
             workflow_result['risk_decision'] = decision
             
             if decision == 'APPROVED':
-                final_output = self._generate_approved_output(market_analysis, trading_plan, validation_result)
+                _plan_record = workflow_result.get('plan') or {}
+                final_output = self._generate_approved_output(
+                    market_analysis, trading_plan, validation_result,
+                    _plan_record.get('target_weights'),
+                )
             elif decision == 'MODIFY':
                 final_output = self._generate_modify_output(market_analysis, trading_plan, validation_result)
             else:
@@ -1338,7 +1342,7 @@ class MultiAgentCoordinator:
         
         return workflow_result
     
-    def _generate_approved_output(self, market_analysis: Dict, trading_plan: Dict, validation_result: Dict) -> str:
+    def _generate_approved_output(self, market_analysis: Dict, trading_plan: Dict, validation_result: Dict, target_weights: Dict = None) -> str:
         """生成批准输出"""
         output_parts = []
         
@@ -1386,10 +1390,24 @@ class MultiAgentCoordinator:
         }
         output_parts.append(f"• 市场判断: {tone_map.get(market_tone, '未知')}")
         
-        # 目标仓位
+        # 目标仓位（S2 honest reporting）：显示计划上限 + 各账户【实际部署】仓位。
+        # 二者背离 >5pp 时给 idle-cash warning，杜绝“显示 55% 实际 15%”的失真
+        # （AGENTS.md § Success Honesty）。
         position_sizing = trading_plan.get('position_sizing', {})
-        total_position = position_sizing.get('total_position', 0)
-        output_parts.append(f"• 目标仓位: {self._format_ratio(total_position * 100)}")
+        total_position = position_sizing.get('total_position', 0) or 0
+        output_parts.append(f"• 目标仓位(上限): {self._format_ratio(total_position * 100)}")
+        if target_weights:
+            acct_label = {'main': '主', 'lab': '实验'}
+            deployed_parts = []
+            max_gap = 0.0
+            for acct in ('main', 'lab'):
+                weights = target_weights.get(acct) or {}
+                deployed = sum(weights.values())
+                deployed_parts.append(f"{acct_label.get(acct, acct)} {self._format_ratio(deployed * 100)}")
+                max_gap = max(max_gap, total_position - deployed)
+            output_parts.append(f"• 实际部署: {' / '.join(deployed_parts)}")
+            if max_gap > 0.05:
+                output_parts.append("⚠️ 实际部署低于目标仓位，存在未配置的闲置现金")
         
         # 信心水平
         output_parts.append(f"• 信心水平: {confidence_map.get(confidence, '中')}")
@@ -1546,6 +1564,38 @@ class MultiAgentCoordinator:
         
         return "\n".join(output_parts)
     
+    def _iteration_stall_warning(self, current_decision: str):
+        """S4: 聚合最近 post_market 的 audit_decision + 绩效史，返回自迭代停滞告警或 None。
+
+        防御式：任何 I/O 异常都吞掉并返回 None，绝不影响盘后主流程（纯加法）。
+        """
+        try:
+            wf_dir = os.path.join(self.data_dir, "agents", "workflows")
+            decisions = []
+            files = sorted(
+                f for f in os.listdir(wf_dir)
+                if f.startswith("workflow_post_market_") and f.endswith(".json")
+            )
+            for fn in files[-15:]:
+                dec = ""
+                try:
+                    with open(os.path.join(wf_dir, fn), encoding="utf-8") as f:
+                        w = json.load(f)
+                    for s in w.get("steps", []):
+                        if s.get("agent") == "strategy_maintainer":
+                            dec = s.get("audit_decision", "")
+                except Exception:
+                    dec = ""
+                decisions.append(dec)
+            decisions.append(current_decision)  # 本次决策尚未落盘，手动并入
+            perf = self._read_json(
+                os.path.join(self.data_dir, "strategies", "performance_history.json"), []
+            )
+            return detect_iteration_stall(decisions, perf)
+        except Exception as e:
+            logger.error(f"自迭代停滞检测失败: {e}")
+            return None
+
     def run_post_market_workflow(self) -> Dict:
         """运行盘后工作流"""
         logger.info("开始盘后工作流...")
@@ -1716,7 +1766,11 @@ class MultiAgentCoordinator:
                 workflow_result['warnings'].append("审计层 INFRA_ERROR，待重试")
             elif audit_decision == 'AUTO_REJECT':
                 workflow_result['warnings'].append("策略变更被审计层拒绝")
-            
+            elif audit_decision == 'NO_CHANGES':
+                stall_msg = self._iteration_stall_warning(audit_decision)
+                if stall_msg:
+                    workflow_result['warnings'].append(stall_msg)
+
             workflow_result['steps'].append({
                 'step': 2,
                 'agent': 'strategy_maintainer',

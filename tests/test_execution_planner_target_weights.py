@@ -250,5 +250,108 @@ class TestComputeTargetWeights(unittest.TestCase):
         self.assertAlmostEqual(weights["600900"], 0.9)
 
 
+class TestFloorLift(unittest.TestCase):
+    """S1 fix: compute_target_weights must honor total_position_floor by
+    deploying idle cash into already-held names (up to max_single), instead of
+    leaving the floor as dead config. Claim-free: it only re-sizes names the
+    strategy already chose; it never invents new tickers."""
+
+    def _strat(self, max_single, floor):
+        return {"main_strategy": {"rules": {"position_sizing": {
+            "max_single_position": max_single,
+            "total_position_floor": floor,
+        }}}}
+
+    def test_floor_lifts_existing_holdings_toward_floor(self):
+        # Two held names, plenty of headroom under a 0.30 cap; floor 0.50.
+        planner = _planner(
+            {"main": {"total_value": 1000.0, "positions": [
+                {"code": "600900", "market_value": 50.0},   # 0.05
+                {"code": "000333", "market_value": 100.0},  # 0.10
+            ]}},
+            self._strat(max_single=0.30, floor=0.50),
+        )
+        plan = {
+            "position_sizing": {"total_position": 0.55},
+            "actions": [{"account": "both", "code": "ALL", "action": "hold"}],
+        }
+        weights = planner.compute_target_weights("main", plan)
+        # idle cash deployed into the two held names up to the floor
+        self.assertAlmostEqual(sum(weights.values()), 0.50, places=4)
+        # no name exceeds the single-name cap
+        self.assertLessEqual(weights["600900"], 0.30 + 1e-9)
+        self.assertLessEqual(weights["000333"], 0.30 + 1e-9)
+        # both were lifted above their starting weight
+        self.assertGreater(weights["600900"], 0.05)
+        self.assertGreater(weights["000333"], 0.10)
+
+    def test_floor_lift_is_partial_and_honest_when_caps_block_floor(self):
+        # Real main-account shape: 8% single-name cap, only 2 names -> max
+        # reachable is 0.16, far below a 0.50 floor. Must NOT fabricate names.
+        planner = _planner(
+            {"main": {"total_value": 1000.0, "positions": [
+                {"code": "600900", "market_value": 50.0},   # 0.05
+                {"code": "000651", "market_value": 80.0},   # 0.08 (already at cap)
+            ]}},
+            self._strat(max_single=0.08, floor=0.50),
+        )
+        plan = {
+            "position_sizing": {"total_position": 0.55},
+            "actions": [{"account": "both", "code": "ALL", "action": "hold"}],
+        }
+        weights = planner.compute_target_weights("main", plan)
+        self.assertAlmostEqual(weights["600900"], 0.08, places=4)  # lifted to cap
+        self.assertAlmostEqual(weights["000651"], 0.08, places=4)  # stays at cap
+        self.assertAlmostEqual(sum(weights.values()), 0.16, places=4)  # honest gap
+        self.assertEqual(set(weights), {"600900", "000651"})  # no invented names
+
+    def test_no_floor_lift_when_floor_absent(self):
+        # Backward compatibility: without total_position_floor, a hold plan must
+        # still return current holding weights unchanged.
+        planner = _planner(
+            {"main": {"total_value": 1000.0, "positions": [
+                {"code": "600900", "market_value": 50.0},
+            ]}},
+            {"main_strategy": {"rules": {"position_sizing": {"max_single_position": 0.30}}}},
+        )
+        plan = {
+            "position_sizing": {"total_position": 0.55},
+            "actions": [{"account": "both", "code": "ALL", "action": "hold"}],
+        }
+        weights = planner.compute_target_weights("main", plan)
+        self.assertAlmostEqual(weights["600900"], 0.05)
+
+    def test_no_floor_lift_when_already_above_floor(self):
+        planner = _planner(
+            {"main": {"total_value": 1000.0, "positions": [
+                {"code": "600900", "market_value": 300.0},  # 0.30
+                {"code": "000333", "market_value": 300.0},  # 0.30
+            ]}},
+            self._strat(max_single=0.40, floor=0.50),
+        )
+        plan = {
+            "position_sizing": {"total_position": 0.80},
+            "actions": [{"account": "both", "code": "ALL", "action": "hold"}],
+        }
+        weights = planner.compute_target_weights("main", plan)
+        self.assertAlmostEqual(weights["600900"], 0.30)
+        self.assertAlmostEqual(weights["000333"], 0.30)
+
+    def test_floor_never_lifts_above_total_position_ceiling(self):
+        # Misconfig guard: floor > ceiling must not push deployment past ceiling.
+        planner = _planner(
+            {"main": {"total_value": 1000.0, "positions": [
+                {"code": "600900", "market_value": 50.0},
+            ]}},
+            self._strat(max_single=0.90, floor=0.80),
+        )
+        plan = {
+            "position_sizing": {"total_position": 0.40},  # ceiling below floor
+            "actions": [{"account": "both", "code": "ALL", "action": "hold"}],
+        }
+        weights = planner.compute_target_weights("main", plan)
+        self.assertLessEqual(sum(weights.values()), 0.40 + 1e-9)
+
+
 if __name__ == "__main__":
     unittest.main()
