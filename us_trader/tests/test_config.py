@@ -6,7 +6,7 @@ def test_defaults_present():
     assert c["holdings_n"] == 8
     assert c["stop_loss_pct"] == -0.10
     assert c["universe"]["mcap_min"] == 300_000_000
-    assert c["weixin_target"] == "weixin"
+    assert c["notify_target"] == "wecom"
 
 
 def test_override(tmp_path):

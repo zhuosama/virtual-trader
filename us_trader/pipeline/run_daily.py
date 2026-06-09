@@ -166,7 +166,7 @@ def run_daily(date: str = None, config_path: str = None) -> dict:
     def _alert_and_fail(step_name: str, exc: Exception):
         msg = f"[us-trader] ❌ {step_name}"
         summary = f"{step_name} failed: {exc}"
-        notify.send_weixin(msg, summary, config)
+        notify.send_notify(msg, summary, config)
         write_health(success=False, failed_step=step_name, error=str(exc))
 
     # ── 1:拉价格面板 ─────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ def run_daily(date: str = None, config_path: str = None) -> dict:
         digest = notify.build_digest(state, trades, selection,
                                      {"success": True}, date)
         subject = f"[us-trader] 日报 {date}"
-        notify.send_weixin(subject, digest, config)
+        notify.send_notify(subject, digest, config)
     except Exception as exc:
         logger.error("run_daily: notify failed: %s", exc)
         _alert_and_fail("notify", exc)
@@ -258,7 +258,7 @@ def run_daily(date: str = None, config_path: str = None) -> dict:
 
     # 若上轮失败 → 本轮成功,发 recovered 通知(去重)
     if prev_health and prev_health.get("success") is False:
-        notify.send_weixin(
+        notify.send_notify(
             "[us-trader] ✅ recovered",
             f"[us-trader] ✅ recovered — 上轮失败步骤:{prev_health.get('failed_step')} 已恢复",
             config,

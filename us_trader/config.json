@@ -30,7 +30,7 @@
     "commission_per_share": 0.005,
     "commission_min": 1.0
   },
-  "weixin_target": "weixin",
+  "notify_target": "wecom",
   "tz_run_hour_bjt": 6,
   "tz_notify_hour_bjt": 8
 }
