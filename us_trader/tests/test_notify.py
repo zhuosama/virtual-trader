@@ -26,4 +26,4 @@ def test_digest_has_sections():
 def test_send_checks_returncode():
     with patch.object(notify.subprocess, "run",
                       return_value=MagicMock(returncode=1, stderr="x")):
-        assert notify.send_weixin("s", "b", {"weixin_target": "weixin"}) is False
+        assert notify.send_notify("s", "b", {"notify_target": "wecom"}) is False

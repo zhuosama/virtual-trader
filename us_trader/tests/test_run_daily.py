@@ -10,7 +10,7 @@ def test_happy_path_writes_health(tmp_path, monkeypatch):
          patch.object(rd.fetch_prices, "fetch_price_panel"), \
          patch.object(rd.fetch_fundamentals, "fetch_fundamentals", return_value={}), \
          patch.object(rd, "_select", return_value=[]), \
-         patch.object(rd.notify, "send_weixin", return_value=True) as snd:
+         patch.object(rd.notify, "send_notify", return_value=True) as snd:
         out = rd.run_daily("20260605")
     import json
     import os
@@ -25,7 +25,7 @@ def test_fetch_failure_alerts(tmp_path, monkeypatch):
                       return_value=["20260101", "20260605"]), \
          patch.object(rd.fetch_prices, "fetch_price_panel",
                       side_effect=RuntimeError("net")), \
-         patch.object(rd.notify, "send_weixin", return_value=True) as snd:
+         patch.object(rd.notify, "send_notify", return_value=True) as snd:
         rd.run_daily("20260605")
     import json
     import os

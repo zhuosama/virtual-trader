@@ -1,6 +1,7 @@
 """
 微信日报组装 + 发送。
-通道:hermes send --to weixin(个人微信,非企业微信 wecom)。
+通道:hermes send --to <notify_target>。默认 wecom(企业微信,官方API稳定);
+个人微信 iLink 属非官方 hook,易被腾讯风控限流(ret=-2 rate limited),故默认不用。
 """
 import logging
 import os
@@ -119,21 +120,21 @@ def build_digest(
     return "\n".join(lines)
 
 
-def send_weixin(subject: str, body: str, config: dict) -> bool:
+def send_notify(subject: str, body: str, config: dict) -> bool:
     """
-    调用 hermes send --to <weixin_target> 发送微信消息。
+    调用 hermes send --to <notify_target> 发送通知。
     检查 returncode,非 0 时记 warning 并返回 False(不吞错误)。
     异常不抛,返回 False。
 
     Args:
         subject: 消息标题
         body: 消息正文(Markdown)
-        config: 配置,使用 config["weixin_target"]
+        config: 配置,使用 config["notify_target"]
 
     Returns:
         True 表示发送成功,False 表示失败
     """
-    target = config.get("weixin_target", "weixin")
+    target = config.get("notify_target", "wecom")
     try:
         result = subprocess.run(
             [_HERMES_BIN, "send", "--to", target, "--subject", subject],
@@ -143,12 +144,12 @@ def send_weixin(subject: str, body: str, config: dict) -> bool:
         )
         if result.returncode != 0:
             logger.warning(
-                "send_weixin: hermes returned code %d, stderr=%s",
+                "send_notify: hermes returned code %d, stderr=%s",
                 result.returncode,
                 result.stderr,
             )
             return False
         return True
     except Exception as exc:
-        logger.warning("send_weixin: exception: %s", exc)
+        logger.warning("send_notify: exception: %s", exc)
         return False
