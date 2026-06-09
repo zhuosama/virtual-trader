@@ -267,3 +267,19 @@ def run_daily(date: str = None, config_path: str = None) -> dict:
     logger.info("run_daily: %s completed successfully", date)
     return {"success": True, "date": date, "trades": len(trades),
             "positions": len(state["positions"])}
+
+
+if __name__ == "__main__":
+    import argparse
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    parser = argparse.ArgumentParser(description="us_trader 每日批跑入口")
+    parser.add_argument("--date", default=None, help="YYYYMMDD,默认今日")
+    parser.add_argument("--config", default=None, help="可选外部配置路径")
+    args = parser.parse_args()
+
+    result = run_daily(args.date, args.config)
+    print(json.dumps(result, ensure_ascii=False))
