@@ -29,6 +29,11 @@ def _planner(data_dir, strategies=None):
     p = ExecutionPlannerAgent.__new__(ExecutionPlannerAgent)
     p.data_dir = data_dir
     p.strategies = strategies or {}
+    # 注入上升趋势日线，使标的通过 F2b 入场过滤（MA5>MA20 + 成交额>3亿），
+    # 让这些测试聚焦于 stop_loss 而非入场逻辑；同时避免真实网络 fetch。
+    p._fetch_daily_kline = lambda code, n=25: [
+        {"day": str(i), "close": float(i), "volume": 1e8} for i in range(1, 26)
+    ]
     return p
 
 

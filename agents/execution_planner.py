@@ -7,6 +7,7 @@ Execution Planner Agent
 
 import json
 import os
+import subprocess
 
 VTRADER_HOME = os.environ.get("VTRADER_HOME", os.path.expanduser("~/.hermes/virtual-trader"))
 from datetime import datetime
@@ -19,6 +20,33 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def compute_ma(closes, window: int):
+    """收盘价序列的 window 日简单移动均线。不足 window 个/空 → None。"""
+    if not closes or len(closes) < window:
+        return None
+    return sum(closes[-window:]) / window
+
+
+def passes_entry(indicators, strategy) -> bool:
+    """F2b 入场判断（纯函数）：MA5>MA20 趋势确认 + 成交额流动性门。
+
+    indicators: {ma5, ma20, amount_yi}（amount_yi=日成交额，单位亿元）。
+    strategy.parameters.min_turnover_billion 给流动性阈值（默认 3，对齐策略
+    entry filter「日成交额>3亿」）。fail-closed：任一指标缺失/None → False。
+    基本面（ROE/股息/负债率，需 PIT）属 F2b-later，不在此纯函数。
+    """
+    if not indicators:
+        return False
+    ma5 = indicators.get("ma5")
+    ma20 = indicators.get("ma20")
+    amount_yi = indicators.get("amount_yi")
+    if ma5 is None or ma20 is None or amount_yi is None:
+        return False
+    min_turnover = (strategy or {}).get("parameters", {}).get("min_turnover_billion") or 3
+    return ma5 > ma20 and amount_yi >= min_turnover
+
 
 class ExecutionPlannerAgent:
     """交易计划专家Agent"""
@@ -407,17 +435,78 @@ class ExecutionPlannerAgent:
 
         return actions
 
-    def _check_entry_conditions(self, stock: Dict, strategy: Dict, sector_strength: List[Dict]) -> bool:
-        """检查入场条件"""
-        # 这里应该实现真正的入场条件检查
-        # 目前先返回True，表示符合入场条件
-        # 实际应该检查：
-        # 1. 趋势条件（MA5>MA20等）
-        # 2. 板块强度
-        # 3. 基本面条件
-        # 4. 估值条件
+    def _parse_sina_kline(self, raw_text: str) -> List[Dict]:
+        """解析新浪日线 JSON 文本 → [{day, close, volume}]（升序）。
+        坏 JSON / 空 / 非 list → []。"""
+        try:
+            rows = json.loads(raw_text)
+        except (ValueError, TypeError):
+            return []
+        if not isinstance(rows, list):
+            return []
+        out = []
+        for r in rows:
+            try:
+                out.append({
+                    "day": r.get("day"),
+                    "close": float(r["close"]),
+                    "volume": float(r["volume"]),
+                })
+            except (TypeError, ValueError, KeyError):
+                continue
+        return out
 
-        return True
+    def _fetch_daily_kline(self, code: str, n: int = 25) -> List[Dict]:
+        """新浪免费日线接口取最近 n 日（无需 token）。失败 → []（fail-closed 上游处理）。"""
+        market = "sh" if code and code[0] in ("6", "5") else "sz"
+        url = (
+            "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+            f"CN_MarketData.getKLineData?symbol={market}{code}&scale=240&ma=no&datalen={n}"
+        )
+        try:
+            res = subprocess.run(
+                ["curl", "-s", url], capture_output=True, timeout=10
+            )
+            return self._parse_sina_kline(res.stdout.decode("utf-8", errors="ignore"))
+        except Exception as e:
+            logger.error(f"获取日线失败 {code}: {e}")
+            return []
+
+    def _compute_indicators(self, code: str) -> Optional[Dict]:
+        """算 {ma5, ma20, amount_yi, close}（amount_yi=最新成交额≈close*volume，亿元）。
+        当日内存缓存；日线不足 20 根 → None。"""
+        cache = getattr(self, "_indicator_cache", None)
+        if cache is None:
+            cache = self._indicator_cache = {}
+        if code in cache:
+            return cache[code]
+        kline = self._fetch_daily_kline(code)
+        closes = [r["close"] for r in kline]
+        ma5 = compute_ma(closes, 5)
+        ma20 = compute_ma(closes, 20)
+        ind = None
+        if ma5 is not None and ma20 is not None and kline:
+            last = kline[-1]
+            ind = {
+                "ma5": ma5,
+                "ma20": ma20,
+                "amount_yi": last["close"] * last["volume"] / 1e8,
+                "close": last["close"],
+            }
+        cache[code] = ind
+        return ind
+
+    def _check_entry_conditions(self, stock: Dict, strategy: Dict, sector_strength: List[Dict]) -> bool:
+        """F2b 入场条件：真实日线 MA5>MA20 趋势 + 成交额流动性门（替换永远 True 的
+        stub）。fail-closed：取不到日线/数据不足 → 拒绝。
+
+        趋势 + 流动性来自新浪日线；基本面（ROE/股息/负债率，需 PIT）属 F2b-later。
+        sector_strength 暂未并入判断（板块分析只覆盖 6 板块，见 followups 文档），
+        留作后续维度。"""
+        ind = self._compute_indicators(stock.get("code"))
+        if ind is None:
+            return False
+        return passes_entry(ind, strategy)
 
     def save_trading_plan(self, plan: Dict, filename: str = None):
         """保存交易计划"""
