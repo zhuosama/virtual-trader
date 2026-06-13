@@ -584,6 +584,39 @@ def detect_iteration_stall(audit_decisions, perf_history,
             f"且近 {len(window)} 日主账户跑输沪深300 {gap_pp:.1f}pp — 需人工检查")
 
 
+def detect_deployment_stall(position_pct_history, floor,
+                            min_stall_days: int = 5, margin_pp: float = 5.0):
+    """F5: 检测资金部署是否长期停滞在 total_position_floor 之下。
+
+    纯函数。返回告警字符串或 None。与 detect_iteration_stall 正交——后者监控
+    策略自迭代停滞，本函数监控**资金部署停滞**（仓位卡在下限之下），后者正是
+    2026-06-08~06-12 G0/MODIFY 死锁期间无人察觉的盲区。
+
+    触发条件（同时成立）：
+      1. 过滤 None 后至少有 min_stall_days 个有效仓位读数；
+      2. 最近 min_stall_days 个仓位全部 < (floor*100 - margin_pp)。
+
+    position_pct_history: most-recent-last 的主账户日度仓位（百分数，如 17.4）。
+    floor: 策略 total_position_floor（小数，如 0.50）；None/缺配 → 不告警。
+    min_stall_days=5：部署缺口比策略停滞更该快速行动（6/8→6/12 恰好 5 个交易日）。
+    margin_pp=5：留出「无信号日合理低仓」缓冲（策略 cash_drag_alert 允许无信号时
+    保持现金），连续 5 日低于 floor-5pp 才算真停滞，而非单日无信号。
+    """
+    if floor is None:
+        return None
+    recent = [p for p in (position_pct_history or []) if p is not None]
+    if len(recent) < min_stall_days:
+        return None
+    threshold = floor * 100 - margin_pp
+    window = recent[-min_stall_days:]
+    if any(p >= threshold for p in window):
+        return None
+    avg = sum(window) / len(window)
+    return (f"⚠️ 资金部署停滞：主账户连续 {min_stall_days} 个交易日仓位 "
+            f"<{threshold:.0f}%（均 {avg:.1f}%，目标下限 {floor * 100:.0f}%）— "
+            f"检查入场候选与 G0 闸门")
+
+
 def main():
     """主函数"""
     agent = StrategyMaintainerAgent()

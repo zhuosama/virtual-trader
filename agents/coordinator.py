@@ -23,7 +23,7 @@ from market_analyst import MarketAnalystAgent
 from execution_planner import ExecutionPlannerAgent
 from risk_controller import RiskControllerAgent
 from review_agent import ReviewAgent
-from strategy_maintainer import StrategyMaintainerAgent, detect_iteration_stall
+from strategy_maintainer import StrategyMaintainerAgent, detect_iteration_stall, detect_deployment_stall
 import audit_layer
 
 # 配置日志
@@ -1234,6 +1234,9 @@ class MultiAgentCoordinator:
         entry["date"] = date_str
         entry["main_pct"] = accounts.get("main", {}).get("daily_pnl_pct", entry.get("main_pct", 0))
         entry["lab_pct"] = accounts.get("lab", {}).get("daily_pnl_pct", entry.get("lab_pct", 0))
+        # F5: 记录日度部署仓位，供 detect_deployment_stall 监控资金部署停滞。
+        entry["main_position_pct"] = accounts.get("main", {}).get("position_pct", entry.get("main_position_pct"))
+        entry["lab_position_pct"] = accounts.get("lab", {}).get("position_pct", entry.get("lab_position_pct"))
         # 保留 settlement 已写的 benchmark（settlement 在执行之前已 fetch hs300）。
         # 若今日 perf 条目尚不存在/无 benchmark（如离线），给出 INV-4 可接受的
         # 已标注占位（hs300_pct=0 + benchmark_note），避免记账后 strict 校验误失败。
@@ -1596,6 +1599,32 @@ class MultiAgentCoordinator:
             logger.error(f"自迭代停滞检测失败: {e}")
             return None
 
+    def _deployment_stall_warning(self):
+        """F5: 读 performance_history 的 main_position_pct 史 + 策略 floor，
+        返回资金部署停滞告警或 None。
+
+        防御式：任何 I/O 异常都吞掉并返回 None，绝不影响盘后主流程（纯加法）。
+        与 audit_decision 无关——部署停滞应无条件评估，不挂在 NO_CHANGES 分支下。
+        """
+        try:
+            perf = self._read_json(
+                os.path.join(self.data_dir, "strategies", "performance_history.json"), []
+            )
+            history = [e.get("main_position_pct") for e in perf if isinstance(e, dict)]
+            active = self._read_json(
+                os.path.join(self.data_dir, "strategies", "active.json"), {}
+            )
+            floor = (
+                active.get("main_strategy", {})
+                .get("rules", {})
+                .get("position_sizing", {})
+                .get("total_position_floor")
+            )
+            return detect_deployment_stall(history, floor)
+        except Exception as e:
+            logger.error(f"资金部署停滞检测失败: {e}")
+            return None
+
     def run_post_market_workflow(self) -> Dict:
         """运行盘后工作流"""
         logger.info("开始盘后工作流...")
@@ -1770,6 +1799,11 @@ class MultiAgentCoordinator:
                 stall_msg = self._iteration_stall_warning(audit_decision)
                 if stall_msg:
                     workflow_result['warnings'].append(stall_msg)
+
+            # F5: 资金部署停滞告警（与 audit_decision 无关，无条件评估）
+            deploy_msg = self._deployment_stall_warning()
+            if deploy_msg:
+                workflow_result['warnings'].append(deploy_msg)
 
             workflow_result['steps'].append({
                 'step': 2,
