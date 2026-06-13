@@ -347,15 +347,29 @@ class ExecutionPlannerAgent:
             'confidence': 'medium'
         }
 
-        # 中性市场主要是持有和微调
-        plan['actions'].append({
-            'account': 'both',
-            'code': 'ALL',
-            'name': '所有持仓',
-            'action': 'hold',
-            'reason': '市场中性，持有现有仓位',
-            'priority': 'medium'
-        })
+        # F6：中性市低仓时扫描入场候选（策略 cash_drag_alert 意图：仓位低于 50%
+        # 触发信号扫描）。用 F2b 过滤后的优质标的温和建仓，而非无脑 hold——否则
+        # 主账户只能靠 bullish 日部署，缺 bullish 日就长期空仓（6/8-6/12 即此情形）。
+        # 受 total_position 0.55 上限 + canary 限速约束；F2b fail-closed 确保弱市
+        # 无合格候选时不乱买。
+        main_strategy = self.strategies.get('main_strategy', {})
+        if main_strategy:
+            plan['actions'].extend(self._generate_main_account_actions(main_strategy, sector_strength))
+
+        lab_strategy = self.strategies.get('lab_strategy', {})
+        if lab_strategy:
+            plan['actions'].extend(self._generate_lab_account_actions(lab_strategy, sector_strength))
+
+        # 无合格入场候选 → 保持现有仓位（对齐 cash_drag_alert「不为执行而执行」）
+        if not plan['actions']:
+            plan['actions'].append({
+                'account': 'both',
+                'code': 'ALL',
+                'name': '所有持仓',
+                'action': 'hold',
+                'reason': '市场中性，无合格入场候选，持有现有仓位',
+                'priority': 'medium'
+            })
 
         return plan
 
