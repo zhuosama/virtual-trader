@@ -331,6 +331,20 @@ class ExecutionPlannerAgent:
 
         return plan
 
+    def _stop_loss_for(self, strategy: Dict, account: str) -> float:
+        """买入动作的默认止损（小数）。取策略 parameters.stop_loss_pct（百分数），
+        回退到 main 0.07 / lab 0.055（与 risk_controller 默认止损一致）。
+
+        买入动作必须自带 stop_loss——否则 risk_controller 把整张计划降为 MODIFY，
+        G0 闸门据此否决全账户候选（2026-06-10 现金拖累死锁的直接成因）。"""
+        pct = strategy.get('parameters', {}).get('stop_loss_pct')
+        if pct is not None:
+            try:
+                return float(pct) / 100.0
+            except (TypeError, ValueError):
+                pass
+        return 0.055 if account == 'lab' else 0.07
+
     def _generate_main_account_actions(self, strategy: Dict, sector_strength: List[Dict]) -> List[Dict]:
         """生成主账户交易动作"""
         actions = []
@@ -354,7 +368,8 @@ class ExecutionPlannerAgent:
                                 'action': 'buy',
                                 'reason': f"符合{strategy.get('name', '主策略')}入场条件",
                                 'priority': 'medium',
-                                'position_size': strategy.get('parameters', {}).get('initial_position', 0.08)
+                                'position_size': strategy.get('parameters', {}).get('initial_position', 0.08),
+                                'stop_loss': self._stop_loss_for(strategy, 'main')
                             })
             except Exception as e:
                 logger.error(f"加载关注池失败: {e}")
@@ -384,7 +399,8 @@ class ExecutionPlannerAgent:
                                 'action': 'buy',
                                 'reason': f"符合{strategy.get('name', '实验策略')}入场条件",
                                 'priority': 'medium',
-                                'position_size': strategy.get('parameters', {}).get('initial_position', 0.15)
+                                'position_size': strategy.get('parameters', {}).get('initial_position', 0.15),
+                                'stop_loss': self._stop_loss_for(strategy, 'lab')
                             })
             except Exception as e:
                 logger.error(f"加载关注池失败: {e}")
