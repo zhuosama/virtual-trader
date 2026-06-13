@@ -1922,6 +1922,28 @@ class MultiAgentCoordinator:
                     pos['unrealized_pnl_pct'] = round((price / pos['avg_cost'] - 1) * 100, 2)
                     updated = True
             
+            # Always update cash-only accounts (no positions) so their
+            # updated_at / daily_pnl stay current.  Skip only when the
+            # API returned zero prices for accounts that DO hold positions
+            # (i.e. the API call failed entirely — degraded scenario).
+            if not updated and not acct.get('positions'):
+                # Check if any position-holding account got updated
+                # (meaning the API worked, just this account has no positions).
+                any_price_updated = any(
+                    f'{a}_value' in results for a in accounts
+                    if accounts[a] is not None and accounts[a].get('positions')
+                )
+                # Also ok if there are no position-holding accounts at all
+                has_position_accounts = any(
+                    accounts[a] is not None and accounts[a].get('positions')
+                    for a in accounts
+                )
+                if any_price_updated or not has_position_accounts:
+                    acct['portfolio_market_value'] = 0
+                    acct['total_value'] = acct.get('cash', 0)
+                    acct['position_pct'] = 0
+                    updated = True
+            
             if updated:
                 acct['portfolio_market_value'] = sum(p['market_value'] for p in acct.get('positions', []))
                 acct['total_value'] = acct['portfolio_market_value'] + acct.get('cash', 0)
