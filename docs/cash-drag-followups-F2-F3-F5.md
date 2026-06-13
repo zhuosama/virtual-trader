@@ -136,12 +136,40 @@ F1 解锁后，floor=50%、当前 ~17.4%，缺口 ≈33pp。≤2%/笔、1 买/�
 - **就绪后只改 config**：编辑 `config/execution.json` 的 `canary` 块，无代码。
   `per_account` 留有 main/lab 差异化覆盖位。
 
+### 当前状态与就绪 config diff（2026-06-13 更新）
+
+**当前不放宽。** F1/F5/F2b 均已实施并合入 main，但 F2b（真实入场过滤）尚未经过
+任何真实交易日观察。AGENTS.md 硬约束「不得修改 production trading config 除非
+task brief 明确授权且通过 promotion gates」——故 canary config **保持不变**：
+
+```json
+"canary": {"per_order": 0.02, "max_buys": 1, "max_sells": 1, "daily_turnover": 0.04}
+```
+
+**就绪触发**：观察 ≥3 个 canary 交易日全部干净
+- 每日 `final_ledger_validation_passed == true`
+- 至少若干日 `execution.accounts.*.executed > 0`（证明 F1+F2b 后确实在买入）
+- 无 `EXECUTION_HALT` 文件、无 kill-switch 触发
+
+**就绪后第一档放宽**（仅编辑 `config/execution.json`，无代码）：
+```json
+"canary": {"per_order": 0.03, "max_buys": 2, "max_sells": 2, "daily_turnover": 0.06}
+```
+把主账户 17.4%→50% 爬坡从 ~17 个交易日缩到 ~5–8 个。
+
+**再观察 ≥3 日干净 → 毕业到 live**：`"mode": "live"`（跳过 canary 上限）。
+回退路径：`EXECUTION_HALT` 文件 或 `"mode": "halt"`（退回确定性 reduce-only）。
+
+> 谁来执行放宽：这属修改 production trading config，需 task brief 明确授权
+> （AGENTS.md）。本文档只提供就绪后的确切 diff 与触发条件，不构成放宽授权。
+
 ---
 
 ## 一句话判断
 
-- **F5**：今天就能做，廉价独立安全网，对标 F4 模式。
-- **F2**：最大的一块；先做 F2a（价格趋势+流动性，fail-closed），F2b（基本面）押后；
-  必须先于 F3。
-- **F3**：不是代码是策略；F1+F2a 干净观察前不放宽；放宽时只改一段 config，并配
-  书面的 live 毕业标准。
+- **F5**：✅ 已实施（commit `9f92bb8`）。资金部署停滞告警，对标 F4 纯函数模式。
+- **F2**：✅ 已实施 F2b（commit `3bd3f90`）——真实 MA5>MA20 趋势 + 成交额≥3亿门
+  （新浪日线，fail-closed）替换永远 True 的 stub。基本面（ROE/股息/负债率，需
+  PIT 接入）+ 板块强度仍为 **F2b-later**。
+- **F3**：不是代码是策略。**当前不放宽**（F2b 未观察 + AGENTS.md config prohibition）；
+  就绪触发条件 + 确切 config diff + live 毕业标准见上「当前状态」小节。

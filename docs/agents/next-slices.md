@@ -2,6 +2,14 @@
 
 These are the next independently-grabbable slices after H43.
 
+## ⚠️ HANDOFF (2026-06-13, claude-code → Hermes)
+
+Cash-drag 修复线 F1/F5/F2b 已实施+push（main）。**待 Hermes 处理**：
+`agents/coordinator.py` 工作树残留你自己的现金账户价格更新改动（`@@ ~1922` hunk），
+已与 F5 逐 hunk 隔离、未提交——请 review + 自行 commit。详见
+`docs/agents/handoff-cash-drag-2026-06-13.md`。F3（canary 放宽）当前不放宽，就绪
+方案见 `docs/cash-drag-followups-F2-F3-F5.md`。
+
 ## H44 — Artifact Consistency Validator
 
 Type: AFK
