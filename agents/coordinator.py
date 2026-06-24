@@ -1134,6 +1134,25 @@ class MultiAgentCoordinator:
             decisions = per_account[acct]["report"].get("decisions", [])
             survivors = [d["order"] for d in decisions
                          if d.get("verdict") in ("pass", "clamp")]
+            # Drop orders with no usable price BEFORE canary caps. _execute_orders
+            # skips price<=0 orders anyway (G7 writer, ~L519), so feeding them to
+            # the canary max_buys/max_sells budget lets an unfillable order — often
+            # a new entry whose price isn't in the positions-derived `prices` map
+            # (L1050) — starve a smaller-but-fillable order, yielding executed=0
+            # cash-drag. Same price predicate as _execute_orders for consistency.
+            acct_prices = per_account[acct]["prices"]
+            fillable, unpriced = [], []
+            for o in survivors:
+                p = acct_prices.get(o.get("code")) or o.get("price") or 0
+                try:
+                    ok = float(p) > 0
+                except (TypeError, ValueError):
+                    ok = False
+                (fillable if ok else unpriced).append(o)
+            if unpriced:
+                summary["accounts"][acct]["dropped_unpriced"] = [
+                    o.get("code") for o in unpriced]
+            survivors = fillable
             if not survivors:
                 continue
 

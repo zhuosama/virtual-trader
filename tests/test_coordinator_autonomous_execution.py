@@ -181,6 +181,52 @@ class TestCanaryMode(unittest.TestCase):
         if pre_perf_exists:
             self.assertEqual(json.load(open(perf_path)), pre_perf)
 
+    def test_canary_unpriced_buy_does_not_starve_fillable_buy(self):
+        """Regression (6/16+ cash-drag): a price-less new-entry buy must not
+        consume the single max_buys budget and starve a smaller-but-fillable
+        held-position buy.
+
+        run_autonomous_execution builds `prices` only from existing positions
+        (coordinator.py:1050), so a NEW target code carries price=None and is
+        unfillable (_execute_orders skips price<=0). apply_canary_caps keeps the
+        largest-by-est_amount order, so the unpriced new entry (larger) won the
+        lone max_buys slot and _execute_orders skipped it → executed=0 every
+        day. The fillable held-position buy must win the slot instead.
+        """
+        data_dir = tempfile.mkdtemp()
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        # 002415 is NOT held → price None; its target (0.30) gives a larger
+        # est_amount than the held 600900 rebalance buy (≈0.172), so under the
+        # "keep largest" canary rule the unpriced order would win the slot.
+        _setup(data_dir, date_str, "canary",
+               main_target={"002415": 0.30, "600900": 0.20},
+               main_positions=[{"code": "600900", "shares": 100, "avg_cost": 27.0,
+                                "current_price": 27.72, "market_value": 2772.0}],
+               main_total_value=100000.0, main_cash=97228.0)
+        cfg_path = os.path.join(data_dir, "config", "execution.json")
+        cfg = json.load(open(cfg_path))
+        cfg["canary"] = {"per_order": 0.5, "max_buys": 1, "max_sells": 5,
+                         "daily_turnover": 1.0}
+        # whitelist both codes so the unpriced new entry passes G3 and reaches
+        # the canary cap (as it does in production); otherwise the harness's
+        # holdings-only whitelist would reject 002415 before the cap.
+        cfg["gates"]["whitelist"] = ["002415", "600900"]
+        json.dump(cfg, open(cfg_path, "w"))
+        c = _coord(data_dir)
+        summary = c.run_autonomous_execution(date_str)
+
+        executed = sum(a.get("executed", 0) for a in summary["accounts"].values())
+        self.assertGreater(
+            executed, 0,
+            "fillable held-position buy should win the max_buys slot, not be "
+            "starved by the unpriced new-entry order")
+        tp = os.path.join(data_dir, "trades", date_str[:7], f"{date_str}.json")
+        rec = json.load(open(tp))
+        traded_codes = {t["code"] for t in rec["trades"]}
+        self.assertIn("600900", traded_codes)
+        self.assertNotIn("002415", traded_codes)
+        self.assertTrue(summary.get("ledger_validation_passed"))
+
 
 class TestLiveMode(unittest.TestCase):
 

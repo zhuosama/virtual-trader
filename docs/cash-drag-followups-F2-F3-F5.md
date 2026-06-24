@@ -173,3 +173,32 @@ task brief 明确授权且通过 promotion gates」——故 canary config **保
   PIT 接入）+ 板块强度仍为 **F2b-later**。
 - **F3**：不是代码是策略。**当前不放宽**（F2b 未观察 + AGENTS.md config prohibition）；
   就绪触发条件 + 确切 config diff + live 毕业标准见上「当前状态」小节。
+
+---
+
+## 2026-06-24 新发现：canary 无价单挤占成交名额（bugfix，非 slice）
+
+**症状**：企业微信「策略自迭代停滞」告警（`detect_iteration_stall`）。诊断后定位真因
+不在策略自迭代（maintainer 持续 `NO_CHANGES` 是对的——策略参数不是问题），而在
+**自主执行自 6/16 起连续 0 成交** → 主账户卡在 ~18% 空仓 → 跑输上涨的沪深300 ~6pp
+→ 触发设计中的人工升级告警。
+
+**根因链**：
+1. `run_autonomous_execution` 的 `prices` 字典**只用现有持仓的 `current_price` 构建**
+   （`coordinator.py:1050`）→ 任何**新建仓 code 价格为 None**，`_execute_orders` 对
+   `price<=0` 直接跳过（`coordinator.py:519`）。
+2. `apply_canary_caps` 在 `max_buys`/`max_sells` 超额时「**保留规模最大、否决规模最小**」
+   （`execution_model.py:295`）。今日（6/24）main 3 个买单过闸：`002415`/`510300` 无价、
+   `600900` 有价；`max_buys=1` 保留了规模最大的无价 `002415`、拒掉唯一可成交的 `600900`
+   → `executed=0`。
+
+**本次修复（最小高杠杆）**：在 `_execute_real_orders` 进 canary 上限前，用与 `_execute_orders`
+一致的判据过滤掉无价订单，让 `max_buys`/`max_sells` 名额留给可成交单（被丢弃的记入
+`summary[...]['dropped_unpriced']` 留痕）。回归测试
+`tests/test_coordinator_autonomous_execution.py::TestCanaryMode::test_canary_unpriced_buy_does_not_starve_fillable_buy`。
+
+**仍未解决（更深，另起 follow-up）**：新建仓 code 在执行路径根本取不到价（prices 仅来自
+持仓）→ 系统结构性地无法开新仓。本 bugfix 只恢复**有价单**（如持仓调仓）的成交；要真正
+部署新仓，需在执行前为候选 code 补价（行情源），或在 planner 端不把无价候选送进执行。
+另注：`detect_deployment_stall`（F5）当前对此哑火——`performance_history` 近窗口几乎不记
+`main_position_pct`，<5 个非 None 读数 → 返回 None，专门的部署停滞安全网未生效。
