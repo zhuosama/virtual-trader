@@ -72,7 +72,14 @@ class TestHS300NeverPlaceholderZero(unittest.TestCase):
     def test_no_null_hs300(self):
         """No entry should have hs300_pct as null."""
         perf = self._load_perf()
-        nulls = [e["date"] for e in perf if e.get("hs300_pct") is None]
+        # Null is only tolerated on a calendar-verified non-trading day that
+        # carries benchmark_note=non_trading_day (same rule as INV-4).
+        import sys
+        sys.path.insert(0, os.path.join(VTRADER_ROOT, "scripts"))
+        from validate_ledger_consistency import NON_TRADING_NOTE, _xshg_day_status
+        nulls = [e["date"] for e in perf if e.get("hs300_pct") is None
+                 and not (e.get("benchmark_note") == NON_TRADING_NOTE
+                          and _xshg_day_status(e["date"]) == "closed")]
         self.assertEqual(nulls, [], f"hs300_pct=null: {nulls}")
 
 

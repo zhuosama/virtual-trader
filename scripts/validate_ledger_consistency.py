@@ -20,6 +20,25 @@ VTRADER_HOME = os.environ.get("VTRADER_HOME", os.path.expanduser("~/.hermes/virt
 
 TOLERANCE_PCT = 0.03  # ±0.03% tolerance for float comparison
 
+NON_TRADING_NOTE = "non_trading_day"
+XSHG_CALENDAR_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "data", "calendar", "xshg_trade_cal.json")
+
+
+def _xshg_day_status(date: str, calendar_path: Optional[str] = None) -> str:
+    """Return 'open' / 'closed' / 'unknown' from the vendored SSE calendar
+    (data/calendar/xshg_trade_cal.json, built from tushare trade_cal by
+    scripts/build_xshg_calendar.py). No weekday fallback: outside coverage
+    or missing file is 'unknown'."""
+    cal = _load_json(calendar_path or XSHG_CALENDAR_PATH)
+    if not cal or not (cal.get("start", "") <= date <= cal.get("end", "")):
+        return "unknown"
+    if date in set(cal.get("open_days", [])):
+        return "open"
+    if date in set(cal.get("closed_days", [])):
+        return "closed"
+    return "unknown"
+
 
 def _load_json(path: str) -> Optional[dict]:
     try:
@@ -182,7 +201,16 @@ class LedgerValidator:
             date = e["date"]
             hs = e.get("hs300_pct")
             if hs is None:
-                issues.append(f"{date}: hs300_pct is null/missing")
+                # Null is allowed ONLY on a verified non-trading day that is
+                # explicitly annotated. Unknown calendar coverage => fail.
+                if e.get("benchmark_note") == NON_TRADING_NOTE:
+                    status = _xshg_day_status(date)
+                    if status == "closed":
+                        continue
+                    issues.append(f"{date}: hs300_pct null with note={NON_TRADING_NOTE} "
+                                  f"but calendar says {status}")
+                else:
+                    issues.append(f"{date}: hs300_pct is null/missing")
             elif hs == 0:
                 # Allow real 0 only if verified
                 src = e.get("benchmark_source")
