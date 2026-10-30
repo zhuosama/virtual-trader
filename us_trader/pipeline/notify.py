@@ -1,17 +1,46 @@
 """
 微信日报组装 + 发送。
-通道:hermes send --to <notify_target>。默认 wecom(企业微信,官方API稳定);
-个人微信 iLink 属非官方 hook,易被腾讯风控限流(ret=-2 rate limited),故默认不用。
+通道:notify_target。默认 local:写本地 Markdown 文件,不调用 hermes send。
+  local 输出: $VTRADER_HOME/logs/notify/us_trader/YYYY-MM-DD_HH-MM-SS.md
+  (VTRADER_HOME 默认 ~/.hermes/virtual-trader)
+显式配置 notify_target=wecom(或其他 hermes send 目标)时仍走 hermes send --to <target>。
+优先级:环境变量 VTRADER_NOTIFY_TARGET > config["notify_target"] > "local"。
 """
 import logging
 import os
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
 logger = logging.getLogger(__name__)
 
 _HERMES_BIN = str(Path("~/.local/bin/hermes").expanduser())
+LOCAL_TARGET = "local"
+
+
+def resolve_target(config: dict) -> str:
+    return (os.environ.get("VTRADER_NOTIFY_TARGET") or config.get("notify_target")
+            or LOCAL_TARGET).strip()
+
+
+def local_notify_dir() -> Path:
+    home = os.environ.get("VTRADER_HOME", str(Path("~/.hermes/virtual-trader").expanduser()))
+    return Path(home) / "logs" / "notify" / "us_trader"
+
+
+def write_local(subject: str, body: str) -> Path:
+    d = local_notify_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    now = datetime.now()
+    path = d / f"{now:%Y-%m-%d_%H-%M-%S}.md"
+    n = 1
+    while path.exists():
+        path = d / f"{now:%Y-%m-%d_%H-%M-%S}_{n}.md"
+        n += 1
+    path.write_text(f"# {subject}\n\n**Time:** {now:%Y-%m-%d %H:%M:%S}\n\n---\n\n{body}\n",
+                    encoding="utf-8")
+    return path
 
 
 def build_digest(
@@ -122,7 +151,7 @@ def build_digest(
 
 def send_notify(subject: str, body: str, config: dict) -> bool:
     """
-    调用 hermes send --to <notify_target> 发送通知。
+    按 resolve_target() 投递:local 写本地文件;其他目标调用 hermes send --to <target>。
     检查 returncode,非 0 时记 warning 并返回 False(不吞错误)。
     异常不抛,返回 False。
 
@@ -134,7 +163,15 @@ def send_notify(subject: str, body: str, config: dict) -> bool:
     Returns:
         True 表示发送成功,False 表示失败
     """
-    target = config.get("notify_target", "wecom")
+    target = resolve_target(config)
+    if target == LOCAL_TARGET:
+        try:
+            path = write_local(subject, body)
+            logger.info("send_notify: wrote local %s", path)
+            return True
+        except Exception as exc:
+            logger.warning("send_notify: local write failed: %s", exc)
+            return False
     try:
         result = subprocess.run(
             [_HERMES_BIN, "send", "--to", target, "--subject", subject],

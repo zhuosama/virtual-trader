@@ -30,7 +30,7 @@
     "commission_per_share": 0.005,
     "commission_min": 1.0
   },
-  "notify_target": "wecom",
+  "notify_target": "local",
   "tz_run_hour_bjt": 6,
   "tz_notify_hour_bjt": 8
 }

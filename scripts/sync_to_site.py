@@ -17,6 +17,10 @@ LOG_PATH = os.path.expanduser("~/.hermes/virtual-trader/logs/site_sync.log")
 HEALTH_PATH = os.path.expanduser("~/.hermes/virtual-trader/logs/site_sync_health.json")
 MAX_LOG_LINES = 500
 HERMES_BIN = os.path.expanduser("~/.local/bin/hermes")
+# Failure-alert target: env VTRADER_NOTIFY_TARGET, default "local" (no WeCom).
+# local output: $VTRADER_HOME/logs/notify/site_sync/YYYY-MM-DD_HH-MM-SS.md
+NOTIFY_LOCAL_DIR = os.path.join(
+    os.environ.get("VTRADER_HOME", VTRADER_HOME), "logs", "notify", "site_sync")
 
 os.environ["PATH"] = (
     "/Users/zhuosama/.nvm/versions/node/v22.22.2/bin:"
@@ -269,8 +273,26 @@ def _write_health(result: dict) -> None:
         log(f"  WARN: failed to write health file: {e}")
 
 
+def _notify_target() -> str:
+    return (os.environ.get("VTRADER_NOTIFY_TARGET") or "local").strip()
+
+
+def _write_local_alert(subject: str, body: str) -> str:
+    os.makedirs(NOTIFY_LOCAL_DIR, exist_ok=True)
+    now = datetime.now()
+    path = os.path.join(NOTIFY_LOCAL_DIR, f"{now:%Y-%m-%d_%H-%M-%S}.md")
+    n = 1
+    while os.path.exists(path):
+        path = os.path.join(NOTIFY_LOCAL_DIR, f"{now:%Y-%m-%d_%H-%M-%S}_{n}.md")
+        n += 1
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(f"# {subject}\n\n**Time:** {now:%Y-%m-%d %H:%M:%S}\n\n---\n\n{body}\n")
+    return path
+
+
 def _notify_wecom(result: dict) -> None:
-    """Send WeCom alert on failure. Subprocess-based; never raises."""
+    """Failure alert. Default target local (file); wecom only if explicitly
+    configured via VTRADER_NOTIFY_TARGET. Never raises."""
     if result.get("success", False):
         return
     steps = result.get("steps", {})
@@ -283,14 +305,21 @@ def _notify_wecom(result: dict) -> None:
     error_text = (errors.get(failed_step, "") or "")[:500]
     ts = result.get("timestamp", datetime.now().isoformat())
     body = f"[{ts}] step={failed_step} failed\n---stderr tail---\n{error_text}"
+    subject = f"[vtrader-sync] ❌ {failed_step}"
+    target = _notify_target()
+    if target == "local":
+        try:
+            log(f"  alert written: {_write_local_alert(subject, body)}")
+        except Exception as e:
+            log(f"  WARN: failed to write local alert: {e}")
+        return
     try:
         subprocess.run(
-            [HERMES_BIN, "send", "--to", "wecom",
-             "--subject", f"[vtrader-sync] ❌ {failed_step}"],
+            [HERMES_BIN, "send", "--to", target, "--subject", subject],
             input=body, capture_output=True, text=True, timeout=15,
         )
     except Exception as e:
-        log(f"  WARN: failed to send WeCom alert: {e}")
+        log(f"  WARN: failed to send {target} alert: {e}")
 
 
 if __name__ == "__main__":
